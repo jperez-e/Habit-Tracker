@@ -1,11 +1,6 @@
 import React from 'react';
-import {
-  ScrollView, StatusBar,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { getTodayString } from '../utils/dateHelpers';
 
@@ -26,132 +21,114 @@ const getDayName = (dateStr: string): string => {
 
 export default function StatsScreen() {
   const { habits } = useHabitStore();
+  const colors = useColors();
   const today = getTodayString();
   const last7 = getLast7Days();
 
-  // Stats globales
   const totalHabits = habits.length;
   const completedToday = habits.filter(h => h.completedDates.includes(today)).length;
   const bestStreak = habits.reduce((max, h) => Math.max(max, h.streak), 0);
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
 
-  // Completados por día (últimos 7 días)
   const weekData = last7.map((date) => ({
-    date,
-    day: getDayName(date),
+    date, day: getDayName(date),
     count: habits.filter(h => h.completedDates.includes(date)).length,
     isToday: date === today,
   }));
 
   const maxCount = Math.max(...weekData.map(d => d.count), 1);
-
-  // Hábito más consistente
   const bestHabit = habits.reduce((best, h) =>
-    h.completedDates.length > (best?.completedDates.length ?? -1) ? h : best
-  , null as any);
+    h.completedDates.length > (best?.completedDates.length ?? -1) ? h : best, null as any);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Título */}
         <View style={styles.header}>
-          <Text style={styles.title}>Estadísticas</Text>
-          <Text style={styles.subtitle}>Tu progreso general</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Estadísticas</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>Tu progreso general</Text>
         </View>
 
-        {/* Cards de resumen */}
+        {/* Cards resumen */}
         <View style={styles.grid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>📋</Text>
-            <Text style={styles.statValue}>{totalHabits}</Text>
-            <Text style={styles.statLabel}>Hábitos totales</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>✅</Text>
-            <Text style={styles.statValue}>{completedToday}</Text>
-            <Text style={styles.statLabel}>Completados hoy</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>🔥</Text>
-            <Text style={styles.statValue}>{bestStreak}</Text>
-            <Text style={styles.statLabel}>Mejor racha</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>🏆</Text>
-            <Text style={styles.statValue}>{totalCompletions}</Text>
-            <Text style={styles.statLabel}>Total completados</Text>
-          </View>
+          {[
+            { emoji: '📋', value: totalHabits, label: 'Hábitos totales' },
+            { emoji: '✅', value: completedToday, label: 'Completados hoy' },
+            { emoji: '🔥', value: bestStreak, label: 'Mejor racha' },
+            { emoji: '🏆', value: totalCompletions, label: 'Total completados' },
+          ].map((stat, i) => (
+            <View key={i} style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={styles.statEmoji}>{stat.emoji}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{stat.value}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>{stat.label}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Gráfica semanal */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Actividad — últimos 7 días</Text>
-          <View style={styles.chart}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Actividad — últimos 7 días</Text>
+          <View style={[styles.chart, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {weekData.map((day) => (
               <View key={day.date} style={styles.barCol}>
-                <Text style={styles.barCount}>
+                <Text style={[styles.barCount, { color: colors.textMuted }]}>
                   {day.count > 0 ? day.count : ''}
                 </Text>
                 <View style={styles.barWrapper}>
-                  <View
-                    style={[
-                      styles.bar,
-                      {
-                        height: Math.max((day.count / maxCount) * 120, day.count > 0 ? 8 : 4),
-                        backgroundColor: day.isToday ? '#6C63FF' : day.count > 0 ? '#6C63FF88' : '#2E2E3E',
-                      }
-                    ]}
-                  />
+                  <View style={[
+                    styles.bar,
+                    {
+                      height: Math.max((day.count / maxCount) * 120, day.count > 0 ? 8 : 4),
+                      backgroundColor: day.isToday ? colors.primary : day.count > 0 ? colors.primary + '88' : colors.border,
+                    }
+                  ]} />
                 </View>
-                <Text style={[styles.barDay, day.isToday && styles.barDayToday]}>
+                <Text style={[styles.barDay, { color: day.isToday ? colors.primary : colors.textMuted },
+                  day.isToday && { fontWeight: 'bold' }]}>
                   {day.day}
                 </Text>
-                {day.isToday && <View style={styles.todayDot} />}
+                {day.isToday && <View style={[styles.todayDot, { backgroundColor: colors.primary }]} />}
               </View>
             ))}
           </View>
         </View>
 
-        {/* Hábito más consistente */}
+        {/* Mejor hábito */}
         {bestHabit && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Hábito más consistente</Text>
-            <View style={[styles.bestCard, { borderColor: bestHabit.color }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Hábito más consistente</Text>
+            <View style={[styles.bestCard, { backgroundColor: colors.card, borderColor: bestHabit.color }]}>
               <View style={[styles.bestIcon, { backgroundColor: bestHabit.color + '33' }]}>
                 <Text style={styles.bestEmoji}>{bestHabit.icon}</Text>
               </View>
               <View style={styles.bestInfo}>
-                <Text style={styles.bestName}>{bestHabit.name}</Text>
-                <Text style={styles.bestStat}>
-                  {bestHabit.completedDates.length} días completados · 🔥 {bestHabit.streak} de racha
+                <Text style={[styles.bestName, { color: colors.text }]}>{bestHabit.name}</Text>
+                <Text style={[styles.bestStat, { color: colors.textMuted }]}>
+                  {bestHabit.completedDates.length} días · 🔥 {bestHabit.streak} de racha
                 </Text>
               </View>
             </View>
           </View>
         )}
 
-        {/* Lista de todos los hábitos con su tasa */}
+        {/* Rendimiento por hábito */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rendimiento por hábito</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Rendimiento por hábito</Text>
           {habits.length === 0 ? (
-            <Text style={styles.empty}>Aún no tienes hábitos registrados</Text>
+            <Text style={[styles.empty, { color: colors.textMuted }]}>Aún no tienes hábitos</Text>
           ) : (
             habits.map((habit) => {
-              const rate = habit.completedDates.length > 0
-                ? Math.min(Math.round((habit.completedDates.length / 30) * 100), 100)
-                : 0;
+              const rate = Math.min(Math.round((habit.completedDates.length / 30) * 100), 100);
               return (
-                <View key={habit.id} style={styles.habitRow}>
+                <View key={habit.id} style={[styles.habitRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={styles.habitIcon}>{habit.icon}</Text>
                   <View style={styles.habitInfo}>
                     <View style={styles.habitRowTop}>
-                      <Text style={styles.habitName}>{habit.name}</Text>
+                      <Text style={[styles.habitName, { color: colors.text }]}>{habit.name}</Text>
                       <Text style={[styles.habitRate, { color: habit.color }]}>{rate}%</Text>
                     </View>
-                    <View style={styles.habitBar}>
+                    <View style={[styles.habitBar, { backgroundColor: colors.border }]}>
                       <View style={[styles.habitBarFill, { width: `${rate}%`, backgroundColor: habit.color }]} />
                     </View>
                   </View>
@@ -167,67 +144,37 @@ export default function StatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#12121E' },
+  container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#FFF' },
-  subtitle: { fontSize: 14, color: '#888', marginTop: 4 },
-  grid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    paddingHorizontal: 20, gap: 12, marginTop: 20, marginBottom: 8,
-  },
-  statCard: {
-    width: '47%', backgroundColor: '#1E1E2E',
-    borderRadius: 16, padding: 16, alignItems: 'center',
-    borderWidth: 1, borderColor: '#2E2E3E',
-  },
+  title: { fontSize: 28, fontWeight: 'bold' },
+  subtitle: { fontSize: 14, marginTop: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 12, marginTop: 20, marginBottom: 8 },
+  statCard: { width: '47%', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1 },
   statEmoji: { fontSize: 28, marginBottom: 8 },
-  statValue: { fontSize: 28, fontWeight: 'bold', color: '#FFF', marginBottom: 4 },
-  statLabel: { fontSize: 12, color: '#888', textAlign: 'center' },
+  statValue: { fontSize: 28, fontWeight: 'bold', marginBottom: 4 },
+  statLabel: { fontSize: 12, textAlign: 'center' },
   section: { paddingHorizontal: 20, marginTop: 28 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#FFF', marginBottom: 16 },
-  chart: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'flex-end', backgroundColor: '#1E1E2E',
-    borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#2E2E3E',
-  },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 16 },
+  chart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', borderRadius: 20, padding: 20, borderWidth: 1 },
   barCol: { alignItems: 'center', flex: 1 },
-  barCount: { fontSize: 11, color: '#888', marginBottom: 4, height: 16 },
+  barCount: { fontSize: 11, marginBottom: 4, height: 16 },
   barWrapper: { height: 120, justifyContent: 'flex-end', width: '100%', alignItems: 'center' },
   bar: { width: 20, borderRadius: 6 },
-  barDay: { fontSize: 11, color: '#555', marginTop: 8 },
-  barDayToday: { color: '#6C63FF', fontWeight: 'bold' },
-  todayDot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: '#6C63FF', marginTop: 4,
-  },
-  bestCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#1E1E2E', borderRadius: 16,
-    padding: 16, borderWidth: 1,
-  },
-  bestIcon: {
-    width: 52, height: 52, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center', marginRight: 14,
-  },
+  barDay: { fontSize: 11, marginTop: 8 },
+  todayDot: { width: 6, height: 6, borderRadius: 3, marginTop: 4 },
+  bestCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: 16, borderWidth: 1 },
+  bestIcon: { width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
   bestEmoji: { fontSize: 26 },
   bestInfo: { flex: 1 },
-  bestName: { fontSize: 16, fontWeight: 'bold', color: '#FFF', marginBottom: 4 },
-  bestStat: { fontSize: 12, color: '#888' },
-  habitRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#1E1E2E', borderRadius: 14,
-    padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: '#2E2E3E',
-  },
+  bestName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  bestStat: { fontSize: 12 },
+  habitRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
   habitIcon: { fontSize: 24, marginRight: 12 },
   habitInfo: { flex: 1 },
   habitRowTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  habitName: { fontSize: 14, fontWeight: '600', color: '#FFF' },
+  habitName: { fontSize: 14, fontWeight: '600' },
   habitRate: { fontSize: 14, fontWeight: 'bold' },
-  habitBar: {
-    height: 6, backgroundColor: '#2E2E3E',
-    borderRadius: 3, overflow: 'hidden',
-  },
+  habitBar: { height: 6, borderRadius: 3, overflow: 'hidden' },
   habitBarFill: { height: '100%', borderRadius: 3 },
-  empty: { color: '#888', fontSize: 14, textAlign: 'center', marginTop: 20 },
+  empty: { fontSize: 14, textAlign: 'center', marginTop: 20 },
 });

@@ -9,6 +9,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useColors } from '../hooks/useColors';
 import { Habit, useHabitStore } from '../store/habitStore';
 import { getTodayString } from '../utils/dateHelpers';
 
@@ -29,15 +30,14 @@ const getDayLabel = (dateStr: string): string => {
 
 export default function HabitDetailScreen() {
   const router = useRouter();
+  const colors = useColors();
   const { habitId } = useLocalSearchParams();
   const { habits, toggleHabit, deleteHabit } = useHabitStore();
   const habit: Habit | undefined = habits.find((h) => h.id === habitId);
 
   useEffect(() => {
-  if (!habit) {
-    router.replace('/(tabs)/home' as any);
-  }
-}, [habit]);
+    if (!habit) router.replace('/(tabs)/home' as any);
+  }, [habit]);
 
   if (!habit) return null;
 
@@ -53,45 +53,36 @@ export default function HabitDetailScreen() {
       `¿Seguro que quieres eliminar "${habit.name}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar', style: 'destructive',
-          onPress: () => {
-            deleteHabit(habit.id);
-            router.back();
-          }
-        }
+        { text: 'Eliminar', style: 'destructive', onPress: () => { deleteHabit(habit.id); router.back(); } }
       ]
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>← Volver</Text>
+          <Text style={[styles.back, { color: colors.primary }]}>← Volver</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={handleDelete}>
-          <Text style={styles.delete}>Eliminar</Text>
+          <Text style={[styles.delete, { color: colors.danger }]}>Eliminar</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Hero */}
         <View style={styles.hero}>
           <View style={[styles.iconBox, { backgroundColor: habit.color + '33' }]}>
             <Text style={styles.icon}>{habit.icon}</Text>
           </View>
-          <Text style={styles.name}>{habit.name}</Text>
-          <Text style={styles.since}>
+          <Text style={[styles.name, { color: colors.text }]}>{habit.name}</Text>
+          <Text style={[styles.since, { color: colors.textMuted }]}>
             Desde {new Date(habit.createdAt).toLocaleDateString('es-ES', {
               day: 'numeric', month: 'long', year: 'numeric'
             })}
           </Text>
-
           <TouchableOpacity
             style={[styles.toggleBtn, isCompletedToday && styles.toggleBtnDone,
               { borderColor: habit.color }]}
@@ -103,37 +94,32 @@ export default function HabitDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Stats */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: habit.color }]}>🔥 {habit.streak}</Text>
-            <Text style={styles.statLabel}>Racha actual</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: habit.color }]}>{completedThisMonth}</Text>
-            <Text style={styles.statLabel}>Días este mes</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: habit.color }]}>{completionRate}%</Text>
-            <Text style={styles.statLabel}>Tasa de éxito</Text>
-          </View>
+          {[
+            { value: `🔥 ${habit.streak}`, label: 'Racha actual' },
+            { value: `${completedThisMonth}`, label: 'Días este mes' },
+            { value: `${completionRate}%`, label: 'Tasa de éxito' },
+          ].map((stat, i) => (
+            <View key={i} style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.statValue, { color: habit.color }]}>{stat.value}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>{stat.label}</Text>
+            </View>
+          ))}
         </View>
 
-        {/* Calendario últimos 30 días */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Últimos 30 días</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Últimos 30 días</Text>
           <View style={styles.calendar}>
             {last30.map((date) => {
               const done = habit.completedDates.includes(date);
               const isToday = date === today;
               return (
                 <View key={date} style={styles.dayCol}>
-                  <Text style={styles.dayLabel}>{getDayLabel(date)}</Text>
+                  <Text style={[styles.dayLabel, { color: colors.textMuted }]}>{getDayLabel(date)}</Text>
                   <View style={[
                     styles.dayDot,
-                    done && { backgroundColor: habit.color },
-                    isToday && styles.dayDotToday,
-                    !done && { backgroundColor: '#2E2E3E' }
+                    { backgroundColor: done ? habit.color : colors.border },
+                    isToday && { borderWidth: 2, borderColor: colors.text }
                   ]} />
                 </View>
               );
@@ -141,9 +127,8 @@ export default function HabitDetailScreen() {
           </View>
         </View>
 
-        {/* Motivación */}
-        <View style={[styles.motivationCard, { borderColor: habit.color }]}>
-          <Text style={styles.motivationText}>
+        <View style={[styles.motivationCard, { backgroundColor: colors.card, borderColor: habit.color }]}>
+          <Text style={[styles.motivationText, { color: colors.textMuted }]}>
             {completionRate >= 80
               ? '🏆 ¡Excelente! Estás construyendo un hábito sólido.'
               : completionRate >= 50
@@ -158,48 +143,31 @@ export default function HabitDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#12121E' },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16,
   },
-  back: { color: '#6C63FF', fontSize: 16 },
-  delete: { color: '#FF6584', fontSize: 16 },
+  back: { fontSize: 16 },
+  delete: { fontSize: 16 },
   hero: { alignItems: 'center', padding: 24, paddingTop: 8 },
-  iconBox: {
-    width: 88, height: 88, borderRadius: 24,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
-  },
+  iconBox: { width: 88, height: 88, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   icon: { fontSize: 44 },
-  name: { fontSize: 26, fontWeight: 'bold', color: '#FFF', marginBottom: 6 },
-  since: { fontSize: 13, color: '#888', marginBottom: 24 },
-  toggleBtn: {
-    paddingHorizontal: 28, paddingVertical: 14,
-    borderRadius: 30, borderWidth: 2, marginTop: 4,
-  },
+  name: { fontSize: 26, fontWeight: 'bold', marginBottom: 6 },
+  since: { fontSize: 13, marginBottom: 24 },
+  toggleBtn: { paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30, borderWidth: 2, marginTop: 4 },
   toggleBtnDone: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
   toggleBtnText: { fontSize: 16, fontWeight: '600' },
-  statsRow: {
-    flexDirection: 'row', paddingHorizontal: 20,
-    gap: 12, marginBottom: 24,
-  },
-  statCard: {
-    flex: 1, backgroundColor: '#1E1E2E', borderRadius: 16,
-    padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#2E2E3E',
-  },
+  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 24 },
+  statCard: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1 },
   statValue: { fontSize: 22, fontWeight: 'bold', marginBottom: 4 },
-  statLabel: { fontSize: 11, color: '#888', textAlign: 'center' },
+  statLabel: { fontSize: 11, textAlign: 'center' },
   section: { paddingHorizontal: 20, marginBottom: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#FFF', marginBottom: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 16 },
   calendar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dayCol: { alignItems: 'center', gap: 4 },
-  dayLabel: { fontSize: 9, color: '#555' },
+  dayLabel: { fontSize: 9 },
   dayDot: { width: 20, height: 20, borderRadius: 6 },
-  dayDotToday: { borderWidth: 2, borderColor: '#FFF' },
-  motivationCard: {
-    margin: 20, backgroundColor: '#1E1E2E',
-    borderRadius: 16, padding: 20,
-    borderWidth: 1, marginBottom: 40,
-  },
-  motivationText: { color: '#CCC', fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  motivationCard: { margin: 20, borderRadius: 16, padding: 20, borderWidth: 1, marginBottom: 40 },
+  motivationText: { fontSize: 15, lineHeight: 22, textAlign: 'center' },
 });
