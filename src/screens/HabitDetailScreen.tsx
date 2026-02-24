@@ -1,14 +1,17 @@
-import React from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
 import {
-  View, Text, StyleSheet,
-  TouchableOpacity, ScrollView, StatusBar, Alert
+  Alert,
+  ScrollView, StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router'; // ← agrega
-import { useHabitStore, Habit } from '../store/habitStore';
+import { Habit, useHabitStore } from '../store/habitStore';
 import { getTodayString } from '../utils/dateHelpers';
 
-// Genera los últimos 30 días
 const getLast30Days = (): string[] => {
   const days = [];
   for (let i = 29; i >= 0; i--) {
@@ -19,32 +22,30 @@ const getLast30Days = (): string[] => {
   return days;
 };
 
-// Nombre corto del día
 const getDayLabel = (dateStr: string): string => {
   const days = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
   return days[new Date(dateStr + 'T12:00:00').getDay()];
 };
 
-export default function HabitDetailScreen() { // ← sin props
-  const router = useRouter(); // ← agrega
-  const { habitId } = useLocalSearchParams(); // ← reemplaza route.params
-
+export default function HabitDetailScreen() {
+  const router = useRouter();
+  const { habitId } = useLocalSearchParams();
   const { habits, toggleHabit, deleteHabit } = useHabitStore();
   const habit: Habit | undefined = habits.find((h) => h.id === habitId);
 
-  if (!habit) {
-    router.back(); // ← reemplaza navigation.goBack()
-    return null;
-  }
+  // ✅ Error 1 corregido — router.back() dentro de useEffect, no en el render
+  useEffect(() => {
+    if (!habit) {
+      router.back();
+    }
+  }, [habit]);
+
+  if (!habit) return null;
 
   const today = getTodayString();
   const last30 = getLast30Days();
   const isCompletedToday = habit.completedDates.includes(today);
-
-  const completedThisMonth = last30.filter(d =>
-    habit.completedDates.includes(d)
-  ).length;
-
+  const completedThisMonth = last30.filter(d => habit.completedDates.includes(d)).length;
   const completionRate = Math.round((completedThisMonth / 30) * 100);
 
   const handleDelete = () => {
@@ -57,7 +58,7 @@ export default function HabitDetailScreen() { // ← sin props
           text: 'Eliminar', style: 'destructive',
           onPress: () => {
             deleteHabit(habit.id);
-            router.back(); // ← reemplaza navigation.goBack()
+            router.back();
           }
         }
       ]
@@ -69,8 +70,9 @@ export default function HabitDetailScreen() { // ← sin props
       <StatusBar barStyle="light-content" />
 
       {/* Header */}
+      {/* ✅ Error 2 corregido — comentario inline eliminado del JSX */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}> // ← reemplaza navigation.goBack()
+        <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.back}>← Volver</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={handleDelete}>
@@ -92,7 +94,6 @@ export default function HabitDetailScreen() { // ← sin props
             })}
           </Text>
 
-          {/* Botón completar hoy */}
           <TouchableOpacity
             style={[styles.toggleBtn, isCompletedToday && styles.toggleBtnDone,
               { borderColor: habit.color }]}
