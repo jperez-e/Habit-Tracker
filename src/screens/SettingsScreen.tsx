@@ -188,7 +188,7 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text style={[styles.footer, { color: colors.border }]}>Hecho con 💜 · Habit Tracker 2024</Text>
+        <Text style={[styles.footer, { color: colors.border }]}>Hecho por José Pérez · Habit Tracker 2026</Text>
 
       </ScrollView>
     </SafeAreaView>
