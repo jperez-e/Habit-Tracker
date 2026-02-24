@@ -1,14 +1,17 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router'; // ← agrega
 import { Habit } from '../store/habitStore';
 import { getTodayString } from '../utils/dateHelpers';
 
 type Props = {
   habit: Habit;
   onToggle: (id: string, date: string) => void;
+  // ← navigation: any eliminado
 };
 
 export default function HabitCard({ habit, onToggle }: Props) {
+  const router = useRouter(); // ← agrega
   const today = getTodayString();
   const isCompleted = habit.completedDates.includes(today);
 
@@ -28,6 +31,14 @@ export default function HabitCard({ habit, onToggle }: Props) {
         </Text>
         <Text style={styles.streak}>🔥 {habit.streak} días seguidos</Text>
       </View>
+
+      {/* ← Botón para ir al detalle */}
+      <TouchableOpacity
+        onPress={() => router.push({ pathname: '/habit-detail' as any, params: { habitId: habit.id } })}
+        style={styles.detailBtn}
+      >
+        <Text style={styles.detailBtnText}>›</Text>
+      </TouchableOpacity>
 
       <View style={[styles.check, isCompleted && { backgroundColor: habit.color }]}>
         <Text style={styles.checkText}>{isCompleted ? '✓' : ''}</Text>
@@ -70,4 +81,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   checkText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
+  detailBtn: { paddingHorizontal: 8 },
+  detailBtnText: { color: '#888', fontSize: 24 },
 });

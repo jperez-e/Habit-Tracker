@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react';
 import {
-  View, Text, FlatList, StyleSheet,
-  SafeAreaView, TouchableOpacity, StatusBar
+  View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router'; // ← agrega este import
 import { useHabitStore } from '../store/habitStore';
 import HabitCard from '../components/HabitCard';
 import { getTodayString, getGreeting } from '../utils/dateHelpers';
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen() {
+  const router = useRouter(); // ← agrega esto
   const { habits, toggleHabit, loadHabits } = useHabitStore();
   const today = getTodayString();
 
@@ -35,7 +37,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.navigate('AddHabit')}
+          onPress={() => router.push('/add-habit' as any)} // ← corregido
         >
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
@@ -67,7 +69,10 @@ export default function HomeScreen({ navigation }: any) {
           data={habits}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <HabitCard habit={item} onToggle={toggleHabit} />
+            <HabitCard
+              habit={item}
+              onToggle={toggleHabit} // ← quitamos navigation prop
+            />
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
