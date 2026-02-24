@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHabitStore } from '../store/habitStore';
+import { useThemeStore } from '../store/themeStore';
 import {
   cancelDailyReminder,
   requestPermissions,
@@ -53,6 +54,7 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const { isDark, toggleTheme } = useThemeStore();
 
   const totalHabits = habits.length;
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
@@ -142,12 +144,12 @@ export default function SettingsScreen() {
             label="Recordatorio diario"
             subtitle="Recibe un aviso para completar tus hábitos"
             right={
-              <Switch
-                value={notifications}
-                onValueChange={handleNotifications}
-                trackColor={{ false: '#2E2E3E', true: '#6C63FF' }}
-                thumbColor="#FFF"
-              />
+             <Switch
+               value={isDark}
+               onValueChange={toggleTheme}
+               trackColor={{ false: '#2E2E3E', true: '#6C63FF' }}
+               thumbColor="#FFF"
+               />
             }
           />
           <View style={styles.divider} />
@@ -208,6 +210,16 @@ export default function SettingsScreen() {
             onPress={handleClearData}
           />
         </View>
+
+        // Agrégalo temporalmente en la sección de Datos
+        <SettingRow
+          icon="🔄"
+          label="Resetear onboarding (solo desarrollo)"
+          onPress={async () => {
+          await AsyncStorage.removeItem('onboarding_completed');
+          Alert.alert('✅ Listo', 'Cierra y vuelve a abrir la app para ver el onboarding.');
+  }}
+/>
 
         <Text style={styles.footer}>Hecho con 💜 · Habit Tracker 2024</Text>
 

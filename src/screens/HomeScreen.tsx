@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HabitCard from '../components/HabitCard';
+import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { getGreeting, getTodayString } from '../utils/dateHelpers';
 
@@ -17,6 +18,7 @@ export default function HomeScreen() {
   const router = useRouter(); 
   const { habits, toggleHabit, loadHabits } = useHabitStore();
   const today = getTodayString();
+  const colors = useColors();
 
   useEffect(() => {
     loadHabits();
@@ -31,8 +33,8 @@ export default function HomeScreen() {
     : 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.background === '#12121E' ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -49,43 +51,39 @@ export default function HomeScreen() {
       </View>
 
       {/* Progreso del día */}
-      <View style={styles.progressCard}>
-        <Text style={styles.progressTitle}>Progreso de hoy</Text>
-        <Text style={styles.progressCount}>
-          {completedCount}/{habits.length} hábitos
-        </Text>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        </View>
-        <Text style={styles.progressPercent}>{progress}% completado</Text>
+      <View style={[styles.progressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[styles.progressTitle, { color: colors.textMuted }]}>Progreso de hoy</Text>
+      <Text style={[styles.progressCount, { color: colors.text }]}>
+        {completedCount}/{habits.length} hábitos
+      </Text>
+      <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+        <View style={[styles.progressFill, { width: `${progress}%` }]} />
       </View>
+      <Text style={styles.progressPercent}>{progress}% completado</Text>
+    </View>
 
       {/* Lista de hábitos */}
-      {habits.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🌱</Text>
-          <Text style={styles.emptyText}>Aún no tienes hábitos</Text>
-          <Text style={styles.emptySubtext}>
-            Toca el botón + para agregar tu primer hábito
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={habits}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <HabitCard
-              habit={item}
-              onToggle={toggleHabit} 
-            />
-          )}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-    </SafeAreaView>
-  );
-}
+     {habits.length === 0 ? (
+      <View style={styles.empty}>
+        <Text style={styles.emptyIcon}>🌱</Text>
+        <Text style={[styles.emptyText, { color: colors.text }]}>Aún no tienes hábitos</Text>
+        <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+          Toca el botón + para agregar tu primer hábito
+        </Text>
+      </View>
+  ) : (
+      <FlatList
+        data={habits}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <HabitCard habit={item} onToggle={toggleHabit} />
+        )}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+      />
+    )}
+  </SafeAreaView>
+  );}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#12121E' },
