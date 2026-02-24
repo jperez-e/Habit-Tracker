@@ -1,15 +1,20 @@
+import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar
+  FlatList,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router'; // ← agrega este import
-import { useHabitStore } from '../store/habitStore';
 import HabitCard from '../components/HabitCard';
-import { getTodayString, getGreeting } from '../utils/dateHelpers';
+import { useHabitStore } from '../store/habitStore';
+import { getGreeting, getTodayString } from '../utils/dateHelpers';
 
 export default function HomeScreen() {
-  const router = useRouter(); // ← agrega esto
+  const router = useRouter(); 
   const { habits, toggleHabit, loadHabits } = useHabitStore();
   const today = getTodayString();
 
@@ -37,7 +42,7 @@ export default function HomeScreen() {
         </View>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => router.push('/add-habit' as any)} // ← corregido
+          onPress={() => router.push('/add-habit' as any)} 
         >
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
@@ -71,7 +76,7 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <HabitCard
               habit={item}
-              onToggle={toggleHabit} // ← quitamos navigation prop
+              onToggle={toggleHabit} 
             />
           )}
           contentContainerStyle={styles.list}

@@ -1,7 +1,9 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet,
-  ScrollView, StatusBar
+  ScrollView, StatusBar,
+  StyleSheet,
+  Text,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHabitStore } from '../store/habitStore';

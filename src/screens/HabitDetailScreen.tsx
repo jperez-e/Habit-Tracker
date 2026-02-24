@@ -33,12 +33,11 @@ export default function HabitDetailScreen() {
   const { habits, toggleHabit, deleteHabit } = useHabitStore();
   const habit: Habit | undefined = habits.find((h) => h.id === habitId);
 
-  // ✅ Error 1 corregido — router.back() dentro de useEffect, no en el render
   useEffect(() => {
-    if (!habit) {
-      router.back();
-    }
-  }, [habit]);
+  if (!habit) {
+    router.replace('/(tabs)/home' as any);
+  }
+}, [habit]);
 
   if (!habit) return null;
 
@@ -70,7 +69,6 @@ export default function HabitDetailScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Header */}
-      {/* ✅ Error 2 corregido — comentario inline eliminado del JSX */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.back}>← Volver</Text>

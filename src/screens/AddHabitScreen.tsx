@@ -1,11 +1,16 @@
+import { useRouter } from 'expo-router'; // ← agrega
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet,
-  TouchableOpacity, ScrollView, Alert, StatusBar
+  Alert,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text, TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { useRouter } from 'expo-router'; // ← agrega
-import { useHabitStore } from '../store/habitStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useHabitStore } from '../store/habitStore';
 const ICONS = ['💪','📚','🏃','🧘','💧','🥗','😴','🎯','✍️','🎨','🎵','🌿'];
 const COLORS = ['#6C63FF','#FF6584','#43C6AC','#F7971E','#12c2e9','#f64f59','#c471ed','#4CAF50'];
 
@@ -41,7 +46,7 @@ export default function AddHabitScreen() { // ← sin props
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}> {/* ← reemplaza navigation.goBack() */}
+        <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.cancel}>Cancelar</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Nuevo hábito</Text>

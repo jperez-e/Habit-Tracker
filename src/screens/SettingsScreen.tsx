@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet,
-  ScrollView, StatusBar, TouchableOpacity, Switch, Alert
+  Alert, ScrollView, StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHabitStore } from '../store/habitStore';
+import {
+  cancelDailyReminder,
+  requestPermissions,
+  scheduleDailyReminder,
+  sendTestNotification
+} from '../utils/notifications';
 
 type SettingRowProps = {
   icon: string;
@@ -35,41 +46,75 @@ function SettingRow({ icon, label, subtitle, onPress, right, danger }: SettingRo
   );
 }
 
+const HOURS = ['06:00', '07:00', '08:00', '09:00', '10:00', '18:00', '20:00', '21:00'];
+
 export default function SettingsScreen() {
   const { habits, clearAllHabits } = useHabitStore();
-  const [darkMode, setDarkMode] = useState(true);
-  const [notifications, setNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const totalHabits = habits.length;
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
 
+  // Carga preferencias guardadas
+  useEffect(() => {
+    const loadPrefs = async () => {
+      const notif = await AsyncStorage.getItem('notifications_enabled');
+      const time = await AsyncStorage.getItem('reminder_time');
+      setNotifications(notif === 'true');
+      if (time) setReminderTime(time);
+    };
+    loadPrefs();
+  }, []);
+
+  const handleNotifications = async (value: boolean) => {
+    if (value) {
+      const granted = await requestPermissions();
+      if (!granted) {
+        Alert.alert(
+          'Permisos necesarios',
+          'Ve a Configuración del sistema y activa las notificaciones para esta app.'
+        );
+        return;
+      }
+      const [hour, minute] = reminderTime.split(':').map(Number);
+      await scheduleDailyReminder(hour, minute);
+      await sendTestNotification();
+      await AsyncStorage.setItem('notifications_enabled', 'true');
+      setNotifications(true);
+    } else {
+      await cancelDailyReminder();
+      await AsyncStorage.setItem('notifications_enabled', 'false');
+      setNotifications(false);
+    }
+  };
+
+  const handleTimeChange = async (time: string) => {
+    setReminderTime(time);
+    setShowTimePicker(false);
+    await AsyncStorage.setItem('reminder_time', time);
+    if (notifications) {
+      const [hour, minute] = time.split(':').map(Number);
+      await scheduleDailyReminder(hour, minute);
+      Alert.alert('✅ Actualizado', `Te recordaremos a las ${time} cada día.`);
+    }
+  };
+
   const handleClearData = () => {
     Alert.alert(
       '⚠️ Borrar todos los datos',
-      'Esto eliminará todos tus hábitos y tu progreso. Esta acción no se puede deshacer.',
+      'Esto eliminará todos tus hábitos y progreso. No se puede deshacer.',
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Borrar todo',
-          style: 'destructive',
-          onPress: () => clearAllHabits(),
-        }
+        { text: 'Borrar todo', style: 'destructive', onPress: () => clearAllHabits() }
       ]
     );
-  };
-
-  const handleNotifications = (value: boolean) => {
-    setNotifications(value);
-    if (value) {
-      Alert.alert('✅ Notificaciones activadas', 'Te recordaremos completar tus hábitos cada día.');
-    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}
@@ -78,7 +123,7 @@ export default function SettingsScreen() {
           <Text style={styles.subtitle}>Personaliza tu experiencia</Text>
         </View>
 
-        {/* Perfil / Resumen */}
+        {/* Perfil */}
         <View style={styles.profileCard}>
           <Text style={styles.profileAvatar}>🧠</Text>
           <View style={styles.profileInfo}>
@@ -89,27 +134,13 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Sección: Preferencias */}
-        <Text style={styles.sectionTitle}>Preferencias</Text>
+        {/* Notificaciones */}
+        <Text style={styles.sectionTitle}>Notificaciones</Text>
         <View style={styles.card}>
           <SettingRow
-            icon="🌙"
-            label="Modo oscuro"
-            subtitle="Tema actual de la app"
-            right={
-              <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
-                trackColor={{ false: '#2E2E3E', true: '#6C63FF' }}
-                thumbColor="#FFF"
-              />
-            }
-          />
-          <View style={styles.divider} />
-          <SettingRow
             icon="🔔"
-            label="Notificaciones"
-            subtitle="Recordatorio diario de hábitos"
+            label="Recordatorio diario"
+            subtitle="Recibe un aviso para completar tus hábitos"
             right={
               <Switch
                 value={notifications}
@@ -123,15 +154,29 @@ export default function SettingsScreen() {
           <SettingRow
             icon="⏰"
             label="Hora del recordatorio"
-            subtitle={notifications ? reminderTime : 'Notificaciones desactivadas'}
-            onPress={() => notifications && Alert.alert(
-              'Hora del recordatorio',
-              'Próximamente podrás elegir la hora exacta.',
-            )}
+            subtitle={notifications ? reminderTime : 'Activa las notificaciones primero'}
+            onPress={() => notifications && setShowTimePicker(!showTimePicker)}
           />
+
+          {/* Selector de hora */}
+          {showTimePicker && (
+            <View style={styles.timePicker}>
+              {HOURS.map((time) => (
+                <TouchableOpacity
+                  key={time}
+                  style={[styles.timeBtn, reminderTime === time && styles.timeBtnActive]}
+                  onPress={() => handleTimeChange(time)}
+                >
+                  <Text style={[styles.timeText, reminderTime === time && styles.timeTextActive]}>
+                    {time}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
-        {/* Sección: App */}
+        {/* Acerca de */}
         <Text style={styles.sectionTitle}>Acerca de la app</Text>
         <View style={styles.card}>
           <SettingRow
@@ -143,33 +188,19 @@ export default function SettingsScreen() {
           <SettingRow
             icon="⭐"
             label="Calificar la app"
-            subtitle="¿Te está ayudando? Déjanos una reseña"
             onPress={() => Alert.alert('¡Gracias!', 'Pronto estará disponible en la tienda.')}
-          />
-          <View style={styles.divider} />
-          <SettingRow
-            icon="📤"
-            label="Compartir la app"
-            onPress={() => Alert.alert('Compartir', 'Próximamente.')}
           />
           <View style={styles.divider} />
           <SettingRow
             icon="🔒"
             label="Política de privacidad"
-            onPress={() => Alert.alert('Privacidad', 'Tus datos se guardan solo en tu dispositivo. No compartimos nada.')}
+            onPress={() => Alert.alert('Privacidad', 'Tus datos se guardan solo en tu dispositivo.')}
           />
         </View>
 
-        {/* Sección: Datos */}
+        {/* Datos */}
         <Text style={styles.sectionTitle}>Datos</Text>
         <View style={styles.card}>
-          <SettingRow
-            icon="💾"
-            label="Exportar datos"
-            subtitle="Próximamente"
-            onPress={() => Alert.alert('Exportar', 'Esta función estará disponible pronto.')}
-          />
-          <View style={styles.divider} />
           <SettingRow
             icon="🗑️"
             label="Borrar todos los datos"
@@ -178,9 +209,7 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text style={styles.footer}>
-          Hecho con 💜 · Habit Tracker 2024
-        </Text>
+        <Text style={styles.footer}>Hecho con 💜 · Habit Tracker 2024</Text>
 
       </ScrollView>
     </SafeAreaView>
@@ -224,8 +253,17 @@ const styles = StyleSheet.create({
   rowRight: { marginLeft: 12 },
   rowArrow: { color: '#555', fontSize: 22 },
   divider: { height: 1, backgroundColor: '#2E2E3E', marginLeft: 52 },
-  footer: {
-    textAlign: 'center', color: '#444',
-    fontSize: 13, paddingVertical: 30,
+  timePicker: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    gap: 10, padding: 16, paddingTop: 0,
   },
+  timeBtn: {
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 20, backgroundColor: '#2E2E3E',
+    borderWidth: 1, borderColor: 'transparent',
+  },
+  timeBtnActive: { backgroundColor: '#6C63FF22', borderColor: '#6C63FF' },
+  timeText: { color: '#888', fontSize: 14 },
+  timeTextActive: { color: '#6C63FF', fontWeight: 'bold' },
+  footer: { textAlign: 'center', color: '#444', fontSize: 13, paddingVertical: 30 },
 });
