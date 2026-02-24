@@ -1,50 +1,124 @@
-# Welcome to your Expo app 👋
+# 🌱 Habit Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación móvil para construir y mantener hábitos diarios, desarrollada con **React Native** y **Expo**. Disponible para Android e iOS.
 
-## Get started
+---
 
-1. Install dependencies
+## ✨ Funcionalidades
 
-   ```bash
-   npm install
-   ```
+- ✅ Crear hábitos personalizados con ícono y color
+- ✅ Marcar hábitos como completados cada día
+- ✅ Sistema de rachas (streaks) para mantenerte motivado
+- ✅ Estadísticas detalladas por hábito y globales
+- ✅ Calendario visual de los últimos 30 días
+- ✅ Notificaciones diarias de recordatorio
+- ✅ Tema oscuro y claro
+- ✅ Datos guardados localmente en el dispositivo
+- ✅ Onboarding para nuevos usuarios
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 🛠️ Tecnologías utilizadas
 
-In the output, you'll find options to open the app in a
+| Tecnología | Uso |
+|---|---|
+| React Native | Framework principal |
+| Expo SDK 51 | Herramientas y build |
+| Expo Router | Navegación por archivos |
+| Zustand | Estado global |
+| AsyncStorage | Persistencia de datos |
+| Expo Notifications | Notificaciones locales |
+| React Native Reanimated | Animaciones |
+| TypeScript | Tipado estático |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 📁 Estructura del proyecto
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+Habit-Tracker/
+├── app/
+│   ├── _layout.tsx          # Layout raíz
+│   ├── index.tsx            # Redirección inicial
+│   ├── onboarding.tsx       # Pantalla de bienvenida
+│   ├── add-habit.tsx        # Agregar hábito
+│   ├── habit-detail.tsx     # Detalle de hábito
+│   └── (tabs)/
+│       ├── _layout.tsx      # Tab bar
+│       ├── home.tsx         # Inicio
+│       ├── stats.tsx        # Estadísticas
+│       └── settings.tsx     # Configuración
+├── src/
+│   ├── screens/             # Pantallas principales
+│   ├── components/          # Componentes reutilizables
+│   ├── store/               # Estado global (Zustand)
+│   ├── hooks/               # Custom hooks
+│   ├── utils/               # Funciones auxiliares
+│   └── theme/               # Colores y estilos
+├── assets/
+└── app.json
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## 🚀 Instalación y uso
 
-To learn more about developing your project with Expo, look at the following resources:
+### Requisitos previos
+- Node.js 18 o superior
+- npm o yarn
+- Expo Go (en tu celular) o un emulador Android/iOS
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Pasos
 
-## Join the community
+```bash
+# 1. Clona el repositorio
+git clone https://github.com/tu-usuario/Habit-Tracker.git
 
-Join our community of developers creating universal apps.
+# 2. Entra al directorio
+cd Habit-Tracker
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# 3. Instala las dependencias
+npm install
+
+# 4. Inicia el servidor de desarrollo
+npx expo start
+```
+
+Luego escanea el código QR con la app **Expo Go** en tu celular.
+
+---
+
+## 📱 Pantallas
+
+| Pantalla | Descripción |
+|---|---|
+| Onboarding | Presentación para nuevos usuarios |
+| Inicio | Lista de hábitos del día con progreso |
+| Agregar hábito | Crear hábito con ícono y color |
+| Detalle | Racha, calendario y estadísticas del hábito |
+| Estadísticas | Resumen global y gráfica semanal |
+| Configuración | Tema, notificaciones y preferencias |
+
+---
+
+## 🤝 Contribuciones
+
+Las contribuciones son bienvenidas. Si encuentras un error o tienes una sugerencia:
+
+1. Haz un fork del proyecto
+2. Crea una rama: `git checkout -b feature/nueva-funcionalidad`
+3. Haz commit de tus cambios: `git commit -m "feat: agrega nueva funcionalidad"`
+4. Sube la rama: `git push origin feature/nueva-funcionalidad`
+5. Abre un Pull Request
+
+---
+
+## 📄 Licencia
+
+Este proyecto está bajo la licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+
+---
+
+## 👨‍💻 Autor
+
+Desarrollado por José Pérez usando React Native y Expo.
