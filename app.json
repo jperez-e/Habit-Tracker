@@ -10,14 +10,14 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tuusuario.habittracker"
+      "bundleIdentifier": "com.jperez.habittracker"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#12121E"
       },
-      "package": "com.tuusuario.habittracker",
+      "package": "com.jperez.habittracker",
       "edgeToEdgeEnabled": true
     },
     "web": {
@@ -43,6 +43,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f2a48da7-5fd3-4f1b-ae11-0888f772b947"
+      }
     }
   }
 }
