@@ -188,7 +188,16 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text style={[styles.footer, { color: colors.border }]}>Hecho por José Pérez · Habit Tracker 2026</Text>
+        <View style={styles.footerContainer}>
+  <View style={[styles.footerDivider, { backgroundColor: colors.primary + '44' }]} />
+  <Text style={[styles.footerEmoji]}>💜</Text>
+  <Text style={[styles.footerText, { color: colors.text }]}>
+    Hecho por <Text style={{ color: colors.primary, fontWeight: 'bold' }}>José Pérez</Text>
+  </Text>
+  <Text style={[styles.footerSub, { color: colors.textMuted }]}>
+    Habit Tracker · 2026
+  </Text>
+</View>
 
       </ScrollView>
     </SafeAreaView>
@@ -224,5 +233,13 @@ const styles = StyleSheet.create({
   timePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 16, paddingTop: 0 },
   timeBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'transparent' },
   timeText: { fontSize: 14 },
-  footer: { textAlign: 'center', fontSize: 13, paddingVertical: 30 },
+  footerContainer: {
+  alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20,
+},
+footerDivider: {
+  width: 60, height: 3, borderRadius: 2, marginBottom: 20,
+},
+footerEmoji: { fontSize: 32, marginBottom: 8 },
+footerText: { fontSize: 16, marginBottom: 4 },
+footerSub: { fontSize: 13 },
 });

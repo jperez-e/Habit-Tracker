@@ -16,6 +16,7 @@ export default function RootLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="add-habit" />
       <Stack.Screen name="habit-detail" />
+      <Stack.Screen name="edit-habit" />
     </Stack>
   );
 }

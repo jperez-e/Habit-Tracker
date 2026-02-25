@@ -38,7 +38,8 @@
             "backgroundColor": "#12121E"
           }
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

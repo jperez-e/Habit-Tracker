@@ -1,12 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
-  Alert,
-  ScrollView, StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+  Alert, ScrollView,
+  Share,
+  StatusBar, StyleSheet,
+  Text, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
@@ -32,7 +30,7 @@ export default function HabitDetailScreen() {
   const router = useRouter();
   const colors = useColors();
   const { habitId } = useLocalSearchParams();
-  const { habits, toggleHabit, deleteHabit } = useHabitStore();
+  const { habits, toggleHabit, deleteHabit, archiveHabit } = useHabitStore();
   const habit: Habit | undefined = habits.find((h) => h.id === habitId);
 
   useEffect(() => {
@@ -47,13 +45,32 @@ export default function HabitDetailScreen() {
   const completedThisMonth = last30.filter(d => habit.completedDates.includes(d)).length;
   const completionRate = Math.round((completedThisMonth / 30) * 100);
 
+  const handleShare = async () => {
+    const message =
+      `🌱 Mi progreso en Habit Tracker\n\n` +
+      `📋 Hábito: ${habit.name} ${habit.icon}\n` +
+      `🔥 Racha actual: ${habit.streak} días\n` +
+      `✅ Completado este mes: ${completedThisMonth} días\n` +
+      `📊 Tasa de éxito: ${completionRate}%\n\n` +
+      `¡Construyendo hábitos un día a la vez!`;
+
+    try {
+      await Share.share({ message });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   const handleDelete = () => {
     Alert.alert(
       'Eliminar hábito',
       `¿Seguro que quieres eliminar "${habit.name}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => { deleteHabit(habit.id); router.back(); } }
+        {
+          text: 'Eliminar', style: 'destructive',
+          onPress: () => { deleteHabit(habit.id); router.back(); }
+        }
       ]
     );
   };
@@ -62,14 +79,48 @@ export default function HabitDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
 
+      {/* ✅ Header correctamente cerrado */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.back, { color: colors.primary }]}>← Volver</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleDelete}>
-          <Text style={[styles.delete, { color: colors.danger }]}>Eliminar</Text>
-        </TouchableOpacity>
-      </View>
+
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/edit-habit' as any, params: { habitId: habit.id } })}
+            style={styles.editBtn}
+          >
+            <Text style={[styles.editBtnText, { color: colors.primary }]}>✏️ Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert(
+                habit.archived ? 'Desarchivar hábito' : 'Archivar hábito',
+                habit.archived
+                  ? '¿Quieres volver a activar este hábito?'
+                  : '¿Quieres archivar este hábito? No aparecerá en tu lista diaria.',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: habit.archived ? 'Desarchivar' : 'Archivar',
+                    onPress: () => { archiveHabit(habit.id); router.back(); }
+                  }
+                ]
+              );
+            }}
+            style={styles.editBtn}
+          >
+            <Text style={[styles.editBtnText, { color: colors.textMuted }]}>
+              {habit.archived ? '📤 Activar' : '📦 Archivar'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleDelete}>
+            <Text style={[styles.delete, { color: colors.danger }]}>Eliminar</Text>
+          </TouchableOpacity>
+        </View>
+      </View> {/* ✅ Cierre del header */}
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -83,6 +134,7 @@ export default function HabitDetailScreen() {
               day: 'numeric', month: 'long', year: 'numeric'
             })}
           </Text>
+
           <TouchableOpacity
             style={[styles.toggleBtn, isCompletedToday && styles.toggleBtnDone,
               { borderColor: habit.color }]}
@@ -90,6 +142,15 @@ export default function HabitDetailScreen() {
           >
             <Text style={[styles.toggleBtnText, { color: isCompletedToday ? '#FFF' : habit.color }]}>
               {isCompletedToday ? '✓ Completado hoy' : 'Marcar como hecho hoy'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.shareBtn, { borderColor: colors.border }]}
+            onPress={handleShare}
+          >
+            <Text style={[styles.shareBtnText, { color: colors.textMuted }]}>
+              📤 Compartir progreso
             </Text>
           </TouchableOpacity>
         </View>
@@ -150,6 +211,9 @@ const styles = StyleSheet.create({
   },
   back: { fontSize: 16 },
   delete: { fontSize: 16 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  editBtn: { paddingHorizontal: 4 },
+  editBtnText: { fontSize: 14, fontWeight: '600' },
   hero: { alignItems: 'center', padding: 24, paddingTop: 8 },
   iconBox: { width: 88, height: 88, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   icon: { fontSize: 44 },
@@ -158,6 +222,8 @@ const styles = StyleSheet.create({
   toggleBtn: { paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30, borderWidth: 2, marginTop: 4 },
   toggleBtnDone: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
   toggleBtnText: { fontSize: 16, fontWeight: '600' },
+  shareBtn: { marginTop: 12, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
+  shareBtnText: { fontSize: 14 },
   statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 24 },
   statCard: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1 },
   statValue: { fontSize: 22, fontWeight: 'bold', marginBottom: 4 },

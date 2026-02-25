@@ -33,34 +33,6 @@ Aplicación móvil para construir y mantener hábitos diarios, desarrollada con 
 
 ---
 
-## 📁 Estructura del proyecto
-
-```
-Habit-Tracker/
-├── app/
-│   ├── _layout.tsx          # Layout raíz
-│   ├── index.tsx            # Redirección inicial
-│   ├── onboarding.tsx       # Pantalla de bienvenida
-│   ├── add-habit.tsx        # Agregar hábito
-│   ├── habit-detail.tsx     # Detalle de hábito
-│   └── (tabs)/
-│       ├── _layout.tsx      # Tab bar
-│       ├── home.tsx         # Inicio
-│       ├── stats.tsx        # Estadísticas
-│       └── settings.tsx     # Configuración
-├── src/
-│   ├── screens/             # Pantallas principales
-│   ├── components/          # Componentes reutilizables
-│   ├── store/               # Estado global (Zustand)
-│   ├── hooks/               # Custom hooks
-│   ├── utils/               # Funciones auxiliares
-│   └── theme/               # Colores y estilos
-├── assets/
-└── app.json
-```
-
----
-
 ## 🚀 Instalación y uso
 
 ### Requisitos previos

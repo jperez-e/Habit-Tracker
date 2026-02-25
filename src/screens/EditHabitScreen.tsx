@@ -1,43 +1,46 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text, TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text, TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 
 const ICONS = ['💪','📚','🏃','🧘','💧','🥗','😴','🎯','✍️','🎨','🎵','🌿'];
 const COLORS = ['#6C63FF','#FF6584','#43C6AC','#F7971E','#12c2e9','#f64f59','#c471ed','#4CAF50'];
 
-export default function AddHabitScreen() {
+export default function EditHabitScreen() {
   const router = useRouter();
   const colors = useColors();
-  const { addHabit } = useHabitStore();
-  const [name, setName] = useState('');
-  const [selectedIcon, setSelectedIcon] = useState('💪');
-  const [selectedColor, setSelectedColor] = useState('#6C63FF');
+  const { habitId } = useLocalSearchParams();
+  const { habits, updateHabit } = useHabitStore();
+  const habit = habits.find(h => h.id === habitId);
 
-  const handleSave = () => {
+  const [name, setName] = useState(habit?.name ?? '');
+  const [selectedIcon, setSelectedIcon] = useState(habit?.icon ?? '💪');
+  const [selectedColor, setSelectedColor] = useState(habit?.color ?? '#6C63FF');
+
+  if (!habit) {
+    router.back();
+    return null;
+  }
+
+  const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Por favor escribe un nombre para el hábito');
       return;
     }
-    addHabit({
-      id: Date.now().toString(),
+    await updateHabit(habit.id, {
       name: name.trim(),
       icon: selectedIcon,
       color: selectedColor,
-      completedDates: [],
-      streak: 0,
-      createdAt: new Date().toISOString(),
-      archived: false, // ← nuevo
     });
     router.back();
   };
@@ -46,12 +49,11 @@ export default function AddHabitScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.cancel, { color: colors.textMuted }]}>Cancelar</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Nuevo hábito</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Editar hábito</Text>
         <TouchableOpacity onPress={handleSave}>
           <Text style={[styles.save, { color: colors.primary }]}>Guardar</Text>
         </TouchableOpacity>
@@ -59,17 +61,15 @@ export default function AddHabitScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Preview */}
         <View style={[styles.preview, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.previewIcon, { backgroundColor: selectedColor + '33' }]}>
             <Text style={styles.previewEmoji}>{selectedIcon}</Text>
           </View>
           <Text style={[styles.previewName, { color: colors.text }]}>
-            {name || 'Mi nuevo hábito'}
+            {name || 'Mi hábito'}
           </Text>
         </View>
 
-        {/* Nombre */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Nombre del hábito</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
@@ -80,7 +80,6 @@ export default function AddHabitScreen() {
           maxLength={30}
         />
 
-        {/* Íconos */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Ícono</Text>
         <View style={styles.grid}>
           {ICONS.map((icon) => (
@@ -95,7 +94,6 @@ export default function AddHabitScreen() {
           ))}
         </View>
 
-        {/* Colores */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Color</Text>
         <View style={styles.colorsRow}>
           {COLORS.map((color) => (
@@ -105,9 +103,7 @@ export default function AddHabitScreen() {
                 selectedColor === color && styles.colorBtnSelected]}
               onPress={() => setSelectedColor(color)}
             >
-              {selectedColor === color && (
-                <Text style={styles.colorCheck}>✓</Text>
-              )}
+              {selectedColor === color && <Text style={styles.colorCheck}>✓</Text>}
             </TouchableOpacity>
           ))}
         </View>
@@ -139,10 +135,7 @@ const styles = StyleSheet.create({
   previewEmoji: { fontSize: 36 },
   previewName: { fontSize: 18, fontWeight: 'bold' },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 12, marginTop: 8, textTransform: 'uppercase', letterSpacing: 1 },
-  input: {
-    borderRadius: 14, padding: 16, fontSize: 16,
-    borderWidth: 1, marginBottom: 24,
-  },
+  input: { borderRadius: 14, padding: 16, fontSize: 16, borderWidth: 1, marginBottom: 24 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   iconBtn: {
     width: 56, height: 56, borderRadius: 14,

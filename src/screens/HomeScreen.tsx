@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   StatusBar,
@@ -19,6 +19,7 @@ import HabitCard from '../components/HabitCard';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { getGreeting, getTodayString } from '../utils/dateHelpers';
+import { t } from '../utils/i18n';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -27,35 +28,43 @@ export default function HomeScreen() {
   const today = getTodayString();
   const confettiRef = useRef<any>(null);
   const prevCompletedRef = useRef(0);
+  const [showArchived, setShowArchived] = useState(false);
 
-  // Valores animados
   const progressWidth = useSharedValue(0);
   const headerOpacity = useSharedValue(0);
   const headerTranslateY = useSharedValue(-20);
 
   useEffect(() => {
     loadHabits();
-    // Anima el header al entrar
     headerOpacity.value = withTiming(1, { duration: 600 });
     headerTranslateY.value = withSpring(0, { damping: 12, stiffness: 100 });
   }, []);
 
-  const completedCount = habits.filter(h => h.completedDates.includes(today)).length;
-  const progress = habits.length > 0 ? completedCount / habits.length : 0;
+  const activeHabits = habits.filter(h => !h.archived);
+  const archivedHabits = habits.filter(h => h.archived);
 
-  // Dispara confetti cuando se completan TODOS los hábitos
+  const completedCount = activeHabits.filter(h =>
+    h.completedDates.includes(today)
+  ).length;
+
+  const progress = activeHabits.length > 0
+    ? completedCount / activeHabits.length
+    : 0;
+
+  const progressPercent = Math.round(progress * 100);
+
+  // Dispara confetti al completar todos
   useEffect(() => {
     if (
-      habits.length > 0 &&
-      completedCount === habits.length &&
-      prevCompletedRef.current !== habits.length
+      activeHabits.length > 0 &&
+      completedCount === activeHabits.length &&
+      prevCompletedRef.current !== activeHabits.length
     ) {
       setTimeout(() => confettiRef.current?.start(), 300);
     }
     prevCompletedRef.current = completedCount;
   }, [completedCount]);
 
-  // Anima la barra de progreso
   useEffect(() => {
     progressWidth.value = withSpring(progress, { damping: 14, stiffness: 80 });
   }, [progress]);
@@ -69,13 +78,12 @@ export default function HomeScreen() {
     width: `${progressWidth.value * 100}%`,
   }));
 
-  const progressPercent = Math.round(progress * 100);
+  const allDone = completedCount === activeHabits.length && activeHabits.length > 0;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
 
-      {/* Confetti al completar todos */}
       <ConfettiCannon
         ref={confettiRef}
         count={120}
@@ -88,9 +96,11 @@ export default function HomeScreen() {
       {/* Header animado */}
       <Animated.View style={[styles.header, headerStyle]}>
         <View>
-          <Text style={[styles.greeting, { color: colors.text }]}>{getGreeting()} 👋</Text>
+          <Text style={[styles.greeting, { color: colors.text }]}>
+            {getGreeting()} 👋
+          </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Revisemos tus hábitos de hoy
+            {t('check_progress')}
           </Text>
         </View>
         <TouchableOpacity
@@ -103,44 +113,72 @@ export default function HomeScreen() {
 
       {/* Tarjeta de progreso */}
       <View style={[styles.progressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.progressTitle, { color: colors.textMuted }]}>Progreso de hoy</Text>
+        <Text style={[styles.progressTitle, { color: colors.textMuted }]}>
+          {t('today_progress')}
+        </Text>
         <Text style={[styles.progressCount, { color: colors.text }]}>
-          {completedCount}/{habits.length} hábitos
-          {completedCount === habits.length && habits.length > 0 ? ' 🎉' : ''}
+          {t('habits_completed', { completed: completedCount, total: activeHabits.length })}
+          {allDone ? ' 🎉' : ''}
         </Text>
         <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
           <Animated.View
             style={[
               styles.progressFill,
-              { backgroundColor: completedCount === habits.length && habits.length > 0
-                  ? '#4CAF50' : colors.primary },
+              { backgroundColor: allDone ? '#4CAF50' : colors.primary },
               progressBarStyle,
             ]}
           />
         </View>
         <Text style={[styles.progressPercent, { color: colors.primary }]}>
-          {progressPercent}% completado
+          {t('percent_completed', { percent: progressPercent })}
         </Text>
       </View>
 
-      {/* Lista de hábitos */}
-      {habits.length === 0 ? (
+      {/* Lista de hábitos activos */}
+      {activeHabits.length === 0 && archivedHabits.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>🌱</Text>
-          <Text style={[styles.emptyText, { color: colors.text }]}>Aún no tienes hábitos</Text>
+          <Text style={[styles.emptyText, { color: colors.text }]}>
+            {t('no_habits')}
+          </Text>
           <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-            Toca el botón + para agregar tu primer hábito
+            {t('no_habits_sub')}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={habits}
+          data={activeHabits}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <HabitCard habit={item} onToggle={toggleHabit} />
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={
+            archivedHabits.length > 0 ? (
+              <View style={styles.archivedSection}>
+                {/* Header colapsable de archivados */}
+                <TouchableOpacity
+                  style={[styles.archivedHeader, { borderColor: colors.border }]}
+                  onPress={() => setShowArchived(!showArchived)}
+                >
+                  <Text style={[styles.archivedTitle, { color: colors.textMuted }]}>
+                    📦 {t('archived')} ({archivedHabits.length})
+                  </Text>
+                  <Text style={[styles.archivedArrow, { color: colors.textMuted }]}>
+                    {showArchived ? '▲' : '▼'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Lista de archivados */}
+                {showArchived && archivedHabits.map(item => (
+                  <View key={item.id} style={styles.archivedItem}>
+                    <HabitCard habit={item} onToggle={toggleHabit} />
+                  </View>
+                ))}
+              </View>
+            ) : null
+          }
         />
       )}
     </SafeAreaView>
@@ -173,4 +211,13 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 64, marginBottom: 16 },
   emptyText: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
   emptySubtext: { fontSize: 14, textAlign: 'center' },
+  archivedSection: { marginTop: 8, marginBottom: 20 },
+  archivedHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingVertical: 12,
+    borderTopWidth: 1, marginBottom: 8,
+  },
+  archivedTitle: { fontSize: 14, fontWeight: '600' },
+  archivedArrow: { fontSize: 12 },
+  archivedItem: { opacity: 0.6 },
 });
