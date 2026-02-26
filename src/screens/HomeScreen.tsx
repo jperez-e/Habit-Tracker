@@ -5,6 +5,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -21,6 +22,7 @@ import { useHabitStore } from '../store/habitStore';
 import { getGreeting, getTodayString } from '../utils/dateHelpers';
 import { t } from '../utils/i18n';
 
+
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
@@ -29,6 +31,8 @@ export default function HomeScreen() {
   const confettiRef = useRef<any>(null);
   const prevCompletedRef = useRef(0);
   const [showArchived, setShowArchived] = useState(false);
+  const [search, setSearch] = useState('');
+  
 
   const progressWidth = useSharedValue(0);
   const headerOpacity = useSharedValue(0);
@@ -40,9 +44,14 @@ export default function HomeScreen() {
     headerTranslateY.value = withSpring(0, { damping: 12, stiffness: 100 });
   }, []);
 
-  const activeHabits = habits.filter(h => !h.archived);
-  const archivedHabits = habits.filter(h => h.archived);
+  const activeHabits = habits
+  .filter(h => !h.archived)
+  .filter(h => h.name.toLowerCase().includes(search.toLowerCase()));
 
+const archivedHabits = habits
+  .filter(h => h.archived)
+  .filter(h => h.name.toLowerCase().includes(search.toLowerCase()));
+  
   const completedCount = activeHabits.filter(h =>
     h.completedDates.includes(today)
   ).length;
@@ -111,6 +120,24 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </Animated.View>
 
+      {/* Buscador */}
+      <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+  <Text style={[styles.searchIcon, { color: colors.textMuted }]}>🔍</Text>
+  <TextInput
+    style={[styles.searchInput, { color: colors.text }]}
+    placeholder="Buscar hábitos..."
+    placeholderTextColor={colors.textMuted}
+    value={search}
+    onChangeText={setSearch}
+    clearButtonMode="while-editing"
+  />
+  {search.length > 0 && (
+    <TouchableOpacity onPress={() => setSearch('')}>
+      <Text style={[styles.searchClear, { color: colors.textMuted }]}>✕</Text>
+    </TouchableOpacity>
+  )}
+</View> 
+
       {/* Tarjeta de progreso */}
       <View style={[styles.progressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.progressTitle, { color: colors.textMuted }]}>
@@ -157,6 +184,7 @@ export default function HomeScreen() {
           ListFooterComponent={
             archivedHabits.length > 0 ? (
               <View style={styles.archivedSection}>
+                
                 {/* Header colapsable de archivados */}
                 <TouchableOpacity
                   style={[styles.archivedHeader, { borderColor: colors.border }]}
@@ -220,4 +248,13 @@ const styles = StyleSheet.create({
   archivedTitle: { fontSize: 14, fontWeight: '600' },
   archivedArrow: { fontSize: 12 },
   archivedItem: { opacity: 0.6 },
+  searchContainer: {
+  flexDirection: 'row', alignItems: 'center',
+  marginHorizontal: 20, marginBottom: 8,
+  borderRadius: 14, paddingHorizontal: 14,
+  paddingVertical: 10, borderWidth: 1,
+},
+searchIcon: { fontSize: 16, marginRight: 8 },
+searchInput: { flex: 1, fontSize: 15 },
+searchClear: { fontSize: 14, paddingLeft: 8 },
 });

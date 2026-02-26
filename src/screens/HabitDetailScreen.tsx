@@ -120,7 +120,8 @@ export default function HabitDetailScreen() {
             <Text style={[styles.delete, { color: colors.danger }]}>Eliminar</Text>
           </TouchableOpacity>
         </View>
-      </View> {/* ✅ Cierre del header */}
+      </View> 
+      {/* ✅ Cierre del header */}
 
       <ScrollView showsVerticalScrollIndicator={false}>
 

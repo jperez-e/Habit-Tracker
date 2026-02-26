@@ -9,8 +9,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { useColors } from '../hooks/useColors';
 import { Habit } from '../store/habitStore';
 import { getTodayString } from '../utils/dateHelpers';
+import { playCompleteSound, playUncompleteSound } from '../utils/sounds';
 
 type Props = {
   habit: Habit;
@@ -19,40 +21,38 @@ type Props = {
 
 export default function HabitCard({ habit, onToggle }: Props) {
   const router = useRouter();
+  const colors = useColors();
   const today = getTodayString();
   const isCompleted = habit.completedDates.includes(today);
 
-  // Valores animados
   const scale = useSharedValue(1);
   const checkScale = useSharedValue(isCompleted ? 1 : 0);
   const cardOpacity = useSharedValue(1);
 
-  // Estilo animado de la card
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: cardOpacity.value,
   }));
 
-  // Estilo animado del check
   const checkStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
   }));
 
   const handleToggle = () => {
-    // Animación de rebote en la card
     scale.value = withSequence(
       withSpring(0.96, { damping: 10, stiffness: 300 }),
       withSpring(1, { damping: 8, stiffness: 200 })
     );
 
-    // Animación del check
     if (!isCompleted) {
       checkScale.value = withSequence(
         withSpring(1.4, { damping: 8, stiffness: 300 }),
         withSpring(1, { damping: 10, stiffness: 200 })
       );
+      runOnJS(playCompleteSound)();
     } else {
       checkScale.value = withTiming(0, { duration: 150 });
+      runOnJS(playUncompleteSound)();
     }
 
     runOnJS(onToggle)(habit.id, today);
@@ -61,7 +61,12 @@ export default function HabitCard({ habit, onToggle }: Props) {
   return (
     <Animated.View style={[cardStyle]}>
       <TouchableOpacity
-        style={[styles.card, isCompleted && styles.cardCompleted]}
+        style={[
+          styles.card,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          isCompleted && { borderColor: '#4CAF50' },
+          habit.archived && { opacity: 0.65 },
+        ]}
         onPress={handleToggle}
         activeOpacity={0.9}
       >
@@ -72,29 +77,48 @@ export default function HabitCard({ habit, onToggle }: Props) {
 
         {/* Info */}
         <View style={styles.info}>
-          <Text style={[styles.name, isCompleted && styles.nameCompleted]}>
+          <Text style={[
+            styles.name,
+            { color: colors.text },
+            isCompleted && { textDecorationLine: 'line-through', color: colors.textMuted },
+          ]}>
             {habit.name}
           </Text>
-          <Text style={styles.streak}>🔥 {habit.streak} días seguidos</Text>
+          <Text style={[styles.streak, { color: colors.textMuted }]}>
+            {habit.archived ? '📦 Archivado · ' : ''}🔥 {habit.streak} días seguidos
+          </Text>
         </View>
 
         {/* Botón detalle */}
         <TouchableOpacity
-          onPress={() => router.push({ pathname: '/habit-detail' as any, params: { habitId: habit.id } })}
+          onPress={() => router.push({
+            pathname: '/habit-detail' as any,
+            params: { habitId: habit.id }
+          })}
           style={styles.detailBtn}
         >
-          <Text style={styles.detailBtnText}>›</Text>
+          <Text style={[styles.detailBtnText, { color: colors.textMuted }]}>›</Text>
         </TouchableOpacity>
 
         {/* Check animado */}
         <Animated.View
           style={[
             styles.check,
-            isCompleted && { backgroundColor: habit.color, borderColor: habit.color },
+            { borderColor: isCompleted ? habit.color : colors.border },
+            isCompleted && { backgroundColor: habit.color },
             checkStyle,
           ]}
         >
-          <Text style={styles.checkText}>{isCompleted ? '✓' : ''}</Text>
+          <Text style={[
+            styles.checkText,
+            {
+              // ✅ Siempre blanco dentro del check coloreado
+              // transparente cuando no está completado (evita el espacio vacío)
+              color: isCompleted ? '#FFFFFF' : 'transparent',
+            }
+          ]}>
+            ✓
+          </Text>
         </Animated.View>
       </TouchableOpacity>
     </Animated.View>
@@ -105,16 +129,10 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E2E',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#2E2E3E',
-  },
-  cardCompleted: {
-    borderColor: '#4CAF50',
-    opacity: 0.85,
   },
   iconBox: {
     width: 48, height: 48, borderRadius: 14,
@@ -122,15 +140,14 @@ const styles = StyleSheet.create({
   },
   icon: { fontSize: 24 },
   info: { flex: 1 },
-  name: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', marginBottom: 4 },
-  nameCompleted: { textDecorationLine: 'line-through', color: '#888' },
-  streak: { fontSize: 12, color: '#888' },
+  name: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  streak: { fontSize: 12 },
   detailBtn: { paddingHorizontal: 8 },
-  detailBtnText: { color: '#888', fontSize: 24 },
+  detailBtnText: { fontSize: 24 },
   check: {
     width: 28, height: 28, borderRadius: 14,
-    borderWidth: 2, borderColor: '#444',
+    borderWidth: 2,
     justifyContent: 'center', alignItems: 'center',
   },
-  checkText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
+  checkText: { fontWeight: 'bold', fontSize: 14 },
 });

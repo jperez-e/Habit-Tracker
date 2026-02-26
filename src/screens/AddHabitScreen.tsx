@@ -37,7 +37,7 @@ export default function AddHabitScreen() {
       completedDates: [],
       streak: 0,
       createdAt: new Date().toISOString(),
-      archived: false, // ← nuevo
+      archived: false,
     });
     router.back();
   };

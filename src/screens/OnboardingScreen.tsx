@@ -2,13 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  FlatList,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -95,6 +95,7 @@ export default function OnboardingScreen() {
         }}
         renderItem={({ item }) => (
           <View style={[styles.slide, { width }]}>
+            
             {/* Círculo decorativo */}
             <View style={[styles.circle, { backgroundColor: item.color + '22' }]}>
               <View style={[styles.circleInner, { backgroundColor: item.color + '44' }]}>
