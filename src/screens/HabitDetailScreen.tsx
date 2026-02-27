@@ -189,6 +189,35 @@ export default function HabitDetailScreen() {
           </View>
         </View>
 
+        {/* Notas del hábito */}
+{habit.notes ? (
+  <View style={styles.section}>
+    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+      📝 Notas
+    </Text>
+    <View style={[styles.notesCard, {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+    }]}>
+      <Text style={[styles.notesText, { color: colors.text }]}>
+        {habit.notes}
+      </Text>
+    </View>
+  </View>
+) : (
+  <TouchableOpacity
+    style={[styles.addNotesBtn, { borderColor: colors.border }]}
+    onPress={() => router.push({
+      pathname: '/edit-habit' as any,
+      params: { habitId: habit.id }
+    })}
+  >
+    <Text style={[styles.addNotesBtnText, { color: colors.textMuted }]}>
+      📝 Agregar notas a este hábito
+    </Text>
+  </TouchableOpacity>
+)}
+
         <View style={[styles.motivationCard, { backgroundColor: colors.card, borderColor: habit.color }]}>
           <Text style={[styles.motivationText, { color: colors.textMuted }]}>
             {completionRate >= 80
@@ -237,4 +266,16 @@ const styles = StyleSheet.create({
   dayDot: { width: 20, height: 20, borderRadius: 6 },
   motivationCard: { margin: 20, borderRadius: 16, padding: 20, borderWidth: 1, marginBottom: 40 },
   motivationText: { fontSize: 15, lineHeight: 22, textAlign: 'center' },
+
+  notesCard: {
+  borderRadius: 16, padding: 16, borderWidth: 1,
+},
+notesText: { fontSize: 15, lineHeight: 24 },
+addNotesBtn: {
+  marginHorizontal: 20, marginBottom: 24,
+  borderRadius: 16, padding: 16,
+  borderWidth: 1, borderStyle: 'dashed',
+  alignItems: 'center',
+},
+addNotesBtnText: { fontSize: 14 },
 });

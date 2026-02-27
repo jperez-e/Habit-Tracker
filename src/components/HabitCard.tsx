@@ -72,7 +72,7 @@ export default function HabitCard({ habit, onToggle }: Props) {
       >
         {/* Ícono */}
         <View style={[styles.iconBox, { backgroundColor: habit.color + '33' }]}>
-          <Text style={styles.icon}>{habit.icon}</Text>
+          <Text style={styles.icon}>{habit.icon || '⭐'}</Text>
         </View>
 
         {/* Info */}

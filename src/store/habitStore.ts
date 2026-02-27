@@ -6,9 +6,12 @@ export type Habit = {
   name: string;
   icon: string;
   color: string;
+  notes: string;
+    reminderEnabled: boolean;
+  reminderTime: string;   
   completedDates: string[];
   streak: number;
-  archived: boolean; // ← nuevo
+  archived: boolean;
   createdAt: string;
 };
 
@@ -109,10 +112,12 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     const data = await AsyncStorage.getItem('habits');
     if (data) {
       const habits = JSON.parse(data);
-      // Migra hábitos viejos que no tienen archived
       const migrated = habits.map((h: Habit) => ({
         ...h,
         archived: h.archived ?? false,
+        notes: h.notes ?? '',
+        reminderEnabled: h.reminderEnabled ?? false,
+        reminderTime: h.reminderTime ?? '08:00',
       }));
       set({ habits: migrated });
     }

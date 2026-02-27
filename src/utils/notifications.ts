@@ -1,38 +1,27 @@
 import * as Notifications from 'expo-notifications';
 
-// Configura cómo se muestran las notificaciones cuando la app está abierta
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-  shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
     shouldShowBanner: true,
     shouldShowList: true,
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
   }),
 });
 
-// Pide permisos al usuario
 export const requestPermissions = async (): Promise<boolean> => {
-  const { status: existing } = await Notifications.getPermissionsAsync();
-
-  if (existing === 'granted') return true;
-
   const { status } = await Notifications.requestPermissionsAsync();
   return status === 'granted';
 };
 
-// Programa un recordatorio diario
-export const scheduleDailyReminder = async (hour: number, minute: number): Promise<string | null> => {
-  const granted = await requestPermissions();
-  if (!granted) return null;
-
-  // Cancela notificaciones anteriores para no duplicar
-  await cancelDailyReminder();
-
-  const id = await Notifications.scheduleNotificationAsync({
+// Recordatorio global (para todos los hábitos)
+export const scheduleGlobalReminder = async (hour: number, minute: number) => {
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  await Notifications.scheduleNotificationAsync({
     content: {
-      title: '🌱 ¡Es hora de tus hábitos!',
-      body: 'Revisa tu progreso de hoy y mantén tu racha activa.',
+      title: '🌱 Habit Tracker',
+      body: '¡Es hora de revisar tus hábitos del día!',
       sound: true,
     },
     trigger: {
@@ -41,31 +30,40 @@ export const scheduleDailyReminder = async (hour: number, minute: number): Promi
       minute,
     },
   });
-
-  return id;
 };
 
-// Cancela el recordatorio diario
-export const cancelDailyReminder = async (): Promise<void> => {
-  await Notifications.cancelAllScheduledNotificationsAsync();
-};
+// Recordatorio por hábito individual
+export const scheduleHabitReminder = async (
+  habitId: string,
+  habitName: string,
+  habitIcon: string,
+  timeStr: string // "HH:MM"
+) => {
+  // Cancela el anterior de este hábito
+  await cancelHabitReminder(habitId);
 
-// Obtiene las notificaciones programadas (para verificar)
-export const getScheduledNotifications = async () => {
-  return await Notifications.getAllScheduledNotificationsAsync();
-};
-
-// Envía una notificación inmediata de prueba
-export const sendTestNotification = async (): Promise<void> => {
-  const granted = await requestPermissions();
-  if (!granted) return;
+  const [hour, minute] = timeStr.split(':').map(Number);
 
   await Notifications.scheduleNotificationAsync({
+    identifier: `habit_${habitId}`,
     content: {
-      title: '✅ Notificaciones activadas',
-      body: '¡Perfecto! Te recordaremos completar tus hábitos cada día.',
+      title: `${habitIcon} Recordatorio`,
+      body: `¡No olvides: ${habitName}!`,
       sound: true,
+      data: { habitId },
     },
-    trigger: null, // inmediata
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+    },
   });
+};
+
+export const cancelHabitReminder = async (habitId: string) => {
+  await Notifications.cancelScheduledNotificationAsync(`habit_${habitId}`);
+};
+
+export const cancelAllReminders = async () => {
+  await Notifications.cancelAllScheduledNotificationsAsync();
 };

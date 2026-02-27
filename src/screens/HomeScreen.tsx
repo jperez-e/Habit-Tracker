@@ -108,7 +108,7 @@ const archivedHabits = habits
       <Animated.View style={[styles.header, headerStyle]}>
         <View>
           <Text style={[styles.greeting, { color: colors.text }]}>
-            {getGreeting()} {userName ? `, ${userName}` : ''} 👋
+            {`${getGreeting()}${userName ? `, ${userName}` : ''} 👋`}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             {t('check_progress')}
