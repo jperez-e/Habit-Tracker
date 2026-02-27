@@ -1,17 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert, ScrollView, StatusBar,
+  Alert,
+  Modal,
+  ScrollView, StatusBar,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { useThemeStore } from '../store/themeStore';
+
 
 type SettingRowProps = {
   icon: string;
@@ -48,9 +52,15 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [showTimePicker, setShowTimePicker] = useState(false);
-
+  const { userName, setUserName } = useThemeStore();
   const totalHabits = habits.length;
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
+  const [nameModalVisible, setNameModalVisible] = useState(false);
+  const [tempName, setTempName] = useState(userName);
+
+useEffect(() => {
+  setTempName(userName);
+}, [userName]);
 
   useEffect(() => {
     const loadPrefs = async () => {
@@ -61,6 +71,18 @@ export default function SettingsScreen() {
     };
     loadPrefs();
   }, []);
+
+  const handleEditName = () => {
+  setTempName(userName);
+  setNameModalVisible(true);
+};
+
+const handleSaveName = async () => {
+  if (tempName.trim()) {
+    await setUserName(tempName.trim());
+  }
+  setNameModalVisible(false);
+};
 
   const handleClearData = () => {
     Alert.alert(
@@ -78,10 +100,64 @@ export default function SettingsScreen() {
     Alert.alert('✅ Listo', 'Cierra y vuelve a abrir la app para ver el onboarding.');
   };
 
+
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
+
+        {/* ← Modal para editar nombre */}
+    <Modal
+      visible={nameModalVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setNameModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            👤 Tu nombre
+          </Text>
+          <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+            Así aparecerás en el saludo
+          </Text>
+          <TextInput
+            style={[styles.modalInput, {
+              backgroundColor: colors.background,
+              borderColor: colors.primary,
+              color: colors.text,
+            }]}
+            value={tempName}
+            onChangeText={setTempName}
+            placeholder="Tu nombre..."
+            placeholderTextColor={colors.textMuted}
+            maxLength={20}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={handleSaveName}
+          />
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.modalBtn, { borderColor: colors.border, borderWidth: 1 }]}
+              onPress={() => setNameModalVisible(false)}
+            >
+              <Text style={[styles.modalBtnText, { color: colors.textMuted }]}>
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+              onPress={handleSaveName}
+            >
+              <Text style={[styles.modalBtnText, { color: '#FFF' }]}>
+                Guardar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
 
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Configuración</Text>
@@ -117,6 +193,13 @@ export default function SettingsScreen() {
             }
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
+           <SettingRow
+             icon="👤"
+             label="Tu nombre"
+             subtitle={userName || 'Sin nombre'}
+             colors={colors}
+             onPress={handleEditName}
+           />
           <SettingRow
             icon="🔔"
             label="Notificaciones"
@@ -242,4 +325,24 @@ footerDivider: {
 footerEmoji: { fontSize: 32, marginBottom: 8 },
 footerText: { fontSize: 16, marginBottom: 4 },
 footerSub: { fontSize: 13 },
+
+modalOverlay: {
+  flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+  justifyContent: 'center', alignItems: 'center', padding: 24,
+},
+modalCard: {
+  width: '100%', borderRadius: 24, padding: 24, borderWidth: 1,
+},
+modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' },
+modalSubtitle: { fontSize: 14, marginBottom: 20, textAlign: 'center' },
+modalInput: {
+  borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+  fontSize: 16, borderWidth: 2, marginBottom: 20, textAlign: 'center',
+},
+modalButtons: { flexDirection: 'row', gap: 12 },
+modalBtn: {
+  flex: 1, paddingVertical: 14, borderRadius: 14,
+  alignItems: 'center', justifyContent: 'center',
+},
+modalBtnText: { fontSize: 15, fontWeight: '600' },
 });

@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import HabitCard from '../components/HabitCard';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
+import { useThemeStore } from '../store/themeStore';
 import { getGreeting, getTodayString } from '../utils/dateHelpers';
 import { t } from '../utils/i18n';
 
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const prevCompletedRef = useRef(0);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
+  const { userName } = useThemeStore();
   
 
   const progressWidth = useSharedValue(0);
@@ -106,7 +108,7 @@ const archivedHabits = habits
       <Animated.View style={[styles.header, headerStyle]}>
         <View>
           <Text style={[styles.greeting, { color: colors.text }]}>
-            {getGreeting()} 👋
+            {getGreeting()} {userName ? `, ${userName}` : ''} 👋
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             {t('check_progress')}
