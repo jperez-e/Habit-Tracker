@@ -1,0 +1,19 @@
+{
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal"
+        },
+        "preview": {
+            "distribution": "internal",
+            "android": {
+                "buildType": "apk"
+            },
+            "env": {
+                "EXPO_PUBLIC_SUPABASE_URL": "https://hwoiixohldlzpcoptcrt.supabase.co",
+                "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3b2lpeG9obGRsenBjb3B0Y3J0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMTQ5OTMsImV4cCI6MjA4Nzc5MDk5M30.ViVESWB3kgq1KTPI3bLQNgWfUaS_O7dPoUUVNEZxnww"
+            }
+        },
+        "production": {}
+    }
+}
