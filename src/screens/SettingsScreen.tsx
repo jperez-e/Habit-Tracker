@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
+import { supabase } from '../lib/supabase';
 import { useHabitStore } from '../store/habitStore';
 import { useThemeStore } from '../store/themeStore';
 
@@ -83,6 +84,24 @@ export default function SettingsScreen() {
       await setUserName(tempName.trim());
     }
     setNameModalVisible(false);
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Estás seguro de que quieres cerrar sesión? Los cambios no sincronizados podrían perderse.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.auth.signOut();
+            await clearAllHabits();
+          }
+        }
+      ]
+    );
   };
 
   const handleClearData = () => {
@@ -271,12 +290,17 @@ export default function SettingsScreen() {
         </View>
 
         {/* Datos */}
-        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Datos</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Datos y Cuenta</Text>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <SettingRow
             icon="🔄" label="Resetear onboarding"
             subtitle="Solo para desarrollo" colors={colors}
             onPress={handleResetOnboarding}
+          />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <SettingRow
+            icon="🚪" label="Cerrar sesión"
+            colors={colors} onPress={handleSignOut}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow

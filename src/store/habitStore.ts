@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 export type Habit = {
   id: string;
@@ -63,6 +64,26 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       const updated = [...get().habits, newHabit];
       set({ habits: updated });
       await AsyncStorage.setItem('habits', JSON.stringify(updated));
+
+      // Sync with Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('habits').insert([
+          {
+            id: newHabit.id,
+            user_id: user.id,
+            name: newHabit.name,
+            icon: newHabit.icon,
+            color: newHabit.color,
+            notes: newHabit.notes,
+            archived: newHabit.archived,
+            reminder_enabled: newHabit.reminderEnabled,
+            reminder_time: newHabit.reminderTime,
+            completed_dates: newHabit.completedDates,
+            created_at: newHabit.createdAt,
+          },
+        ]);
+      }
     } catch (error) {
       console.error('Error saving habit to storage:', error);
     }
@@ -75,6 +96,22 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       );
       set({ habits: updated });
       await AsyncStorage.setItem('habits', JSON.stringify(updated));
+
+      // Sync with Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const dbUpdates: any = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+        if (updates.color !== undefined) dbUpdates.color = updates.color;
+        if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+        if (updates.archived !== undefined) dbUpdates.archived = updates.archived;
+        if (updates.reminderEnabled !== undefined) dbUpdates.reminder_enabled = updates.reminderEnabled;
+        if (updates.reminderTime !== undefined) dbUpdates.reminder_time = updates.reminderTime;
+        if (updates.completedDates !== undefined) dbUpdates.completed_dates = updates.completedDates;
+
+        await supabase.from('habits').update(dbUpdates).eq('id', id);
+      }
     } catch (error) {
       console.error('Error updating habit in storage:', error);
     }
@@ -82,20 +119,28 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
   toggleHabit: async (id, date) => {
     try {
+      let finalDates: string[] = [];
       const updated = get().habits.map(h => {
         if (h.id !== id) return h;
         const alreadyDone = h.completedDates.includes(date);
         const newDates = alreadyDone
           ? h.completedDates.filter(d => d !== date)
           : [...h.completedDates, date];
+        finalDates = newDates;
         return {
           ...h,
           completedDates: newDates,
-          streak: calculateStreak(newDates), // ← racha real
+          streak: calculateStreak(newDates),
         };
       });
       set({ habits: updated });
       await AsyncStorage.setItem('habits', JSON.stringify(updated));
+
+      // Sync with Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('habits').update({ completed_dates: finalDates }).eq('id', id);
+      }
     } catch (error) {
       console.error('Error toggling habit in storage:', error);
     }
@@ -106,6 +151,12 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       const updated = get().habits.filter(h => h.id !== id);
       set({ habits: updated });
       await AsyncStorage.setItem('habits', JSON.stringify(updated));
+
+      // Sync with Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('habits').delete().eq('id', id);
+      }
     } catch (error) {
       console.error('Error deleting habit from storage:', error);
     }
@@ -113,11 +164,22 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
   archiveHabit: async (id) => {
     try {
-      const updated = get().habits.map(h =>
-        h.id === id ? { ...h, archived: !h.archived } : h
-      );
+      let isArchived = false;
+      const updated = get().habits.map(h => {
+        if (h.id === id) {
+          isArchived = !h.archived;
+          return { ...h, archived: isArchived };
+        }
+        return h;
+      });
       set({ habits: updated });
       await AsyncStorage.setItem('habits', JSON.stringify(updated));
+
+      // Sync with Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('habits').update({ archived: isArchived }).eq('id', id);
+      }
     } catch (error) {
       console.error('Error archiving habit in storage:', error);
     }
@@ -127,6 +189,12 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     try {
       set({ habits: [] });
       await AsyncStorage.removeItem('habits');
+
+      // Sync with Supabase (delete all user habits)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('habits').delete().eq('user_id', user.id);
+      }
     } catch (error) {
       console.error('Error clearing habits in storage:', error);
     }
@@ -134,18 +202,81 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
   loadHabits: async () => {
     try {
-      const data = await AsyncStorage.getItem('habits');
-      if (data) {
-        const habits = JSON.parse(data);
-        const migrated = habits.map((h: Habit) => ({
-          ...h,
-          archived: h.archived ?? false,
-          notes: h.notes ?? '',
-          reminderEnabled: h.reminderEnabled ?? false,
-          reminderTime: h.reminderTime ?? '08:00',
-        }));
-        set({ habits: migrated });
+      // 1. Load local
+      const localData = await AsyncStorage.getItem('habits');
+      let localHabits: Habit[] = localData ? JSON.parse(localData) : [];
+
+      // 2. Load from Supabase if logged in
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: cloudHabits, error } = await supabase
+          .from('habits')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (!error && cloudHabits) {
+          // Merge logic: prefer cloud data, but push local if not in cloud
+          const merged: Habit[] = [...localHabits];
+
+          // Map cloud habits back to local type
+          const mappedCloud: Habit[] = cloudHabits.map(ch => ({
+            id: ch.id,
+            name: ch.name,
+            icon: ch.icon,
+            color: ch.color,
+            notes: ch.notes,
+            reminderEnabled: ch.reminder_enabled,
+            reminderTime: ch.reminder_time,
+            completedDates: ch.completed_dates,
+            streak: calculateStreak(ch.completed_dates),
+            archived: ch.archived,
+            createdAt: ch.created_at,
+          }));
+
+          // Add cloud habits to local if missing (based on ID)
+          mappedCloud.forEach(ch => {
+            const index = merged.findIndex(lh => lh.id === ch.id);
+            if (index === -1) {
+              merged.push(ch);
+            } else {
+              // If exists in both, cloud wins for consistency
+              merged[index] = ch;
+            }
+          });
+
+          // Upload local habits that are NOT in cloud
+          const toUpload = localHabits.filter(lh => !mappedCloud.find(ch => ch.id === lh.id));
+          if (toUpload.length > 0) {
+            await supabase.from('habits').insert(toUpload.map(lh => ({
+              id: lh.id,
+              user_id: user.id,
+              name: lh.name,
+              icon: lh.icon,
+              color: lh.color,
+              notes: lh.notes,
+              archived: lh.archived,
+              reminder_enabled: lh.reminderEnabled,
+              reminder_time: lh.reminderTime,
+              completed_dates: lh.completedDates,
+              created_at: lh.createdAt,
+            })));
+          }
+
+          localHabits = merged;
+        }
       }
+
+      const migrated = localHabits.map((h: Habit) => ({
+        ...h,
+        archived: h.archived ?? false,
+        notes: h.notes ?? '',
+        reminderEnabled: h.reminderEnabled ?? false,
+        reminderTime: h.reminderTime ?? '08:00',
+        streak: calculateStreak(h.completedDates),
+      }));
+
+      set({ habits: migrated });
+      await AsyncStorage.setItem('habits', JSON.stringify(migrated));
     } catch (error) {
       console.error('Error loading habits from storage:', error);
     }
