@@ -1,5 +1,11 @@
 import * as Notifications from 'expo-notifications';
+import { LogBox } from 'react-native';
 
+// Ignora la advertencia sobre notificaciones remotas en Expo Go,
+// ya que esta app usa únicamente notificaciones locales (que sí funcionan).
+LogBox.ignoreLogs([
+  'Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go',
+]);
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
