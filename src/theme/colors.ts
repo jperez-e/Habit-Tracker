@@ -7,6 +7,8 @@ export const darkColors = {
   primary: '#6C63FF',
   success: '#4CAF50',
   danger: '#FF6584',
+  dangerLight: '#FF658433',
+  system: 'dark',
 };
 
 export const lightColors = {
@@ -18,6 +20,8 @@ export const lightColors = {
   primary: '#6C63FF',
   success: '#4CAF50',
   danger: '#FF6584',
+  dangerLight: '#FF658433',
+  system: 'light',
 };
 
 export type Colors = typeof darkColors;

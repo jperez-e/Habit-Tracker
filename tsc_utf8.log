@@ -1,0 +1,2 @@
+﻿src/screens/ProfileScreen.tsx(211,34): error TS2339: Property 'quoteText' does not exist on type '{ container: { flex: number; }; profileHeader: { margin: number; borderRadius: number; padding: number; alignItems: "center"; borderWidth: number; }; avatar: { width: number; height: number; borderRadius: number; ... 7 more ...; elevation: number; }; ... 29 more ...; modalBtnText: { ...; }; }'.
+

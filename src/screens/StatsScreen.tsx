@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react';
 import {
+  Dimensions,
   ScrollView, StatusBar,
   StyleSheet,
   Text,
   View
 } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
@@ -90,7 +92,7 @@ export default function StatsScreen() {
       thisWeekTotal, lastWeekTotal, bestDayIndex, dayTotals,
       maxMonthly, maxWeekly,
     };
-  }, [habits, today]);
+  }, [habits, today, activeHabits]);
 
   const weekImprovement = stats.lastWeekTotal > 0
     ? Math.round(((stats.thisWeekTotal - stats.lastWeekTotal) / stats.lastWeekTotal) * 100)
@@ -172,29 +174,43 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        {/* Gráfica mensual */}
+        {/* Gráfica mensual usando react-native-chart-kit */}
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Últimos 30 días</Text>
-          <View style={styles.monthChart}>
-            {stats.monthlyData.map((d, i) => (
-              <View key={i} style={styles.monthBarCol}>
-                <View style={[styles.monthBarBg, { backgroundColor: colors.border }]}>
-                  <View style={[
-                    styles.monthBarFill,
-                    {
-                      height: `${(d.count / stats.maxMonthly) * 100}%`,
-                      backgroundColor: d.date === today ? '#4CAF50' : colors.primary,
-                      opacity: d.count === 0 ? 0.2 : 1,
-                    }
-                  ]} />
-                </View>
-                {(i % 5 === 0 || i === 29) && (
-                  <Text style={[styles.monthBarLabel, { color: colors.textMuted }]}>
-                    {d.day}
-                  </Text>
-                )}
-              </View>
-            ))}
+          <View style={{ alignItems: 'center', marginTop: 10 }}>
+            <LineChart
+              data={{
+                labels: stats.monthlyData.filter((_, i) => i % 5 === 0 || i === 29).map(d => d.day.toString()),
+                datasets: [
+                  {
+                    data: stats.monthlyData.map(d => d.count),
+                  }
+                ]
+              }}
+              width={Dimensions.get('window').width - 70} // width of the screen - padding
+              height={220}
+              chartConfig={{
+                backgroundColor: colors.card,
+                backgroundGradientFrom: colors.card,
+                backgroundGradientTo: colors.card,
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(108, 99, 255, ${opacity})`, // colors.primary
+                labelColor: (opacity = 1) => colors.textMuted,
+                style: {
+                  borderRadius: 16
+                },
+                propsForDots: {
+                  r: "2",
+                  strokeWidth: "2",
+                  stroke: colors.primary
+                }
+              }}
+              bezier
+              style={{
+                marginVertical: 8,
+                borderRadius: 16
+              }}
+            />
           </View>
         </View>
 
@@ -273,10 +289,10 @@ export default function StatsScreen() {
             activeHabits.map(habit => {
               const rate = habit.completedDates.length > 0
                 ? Math.min(Math.round((habit.completedDates.length /
-                    Math.max(1, Math.ceil(
-                      (new Date().getTime() - new Date(habit.createdAt).getTime())
-                      / (1000 * 60 * 60 * 24)
-                    ))) * 100), 100)
+                  Math.max(1, Math.ceil(
+                    (new Date().getTime() - new Date(habit.createdAt).getTime())
+                    / (1000 * 60 * 60 * 24)
+                  ))) * 100), 100)
                 : 0;
               return (
                 <View key={habit.id} style={styles.habitRow}>

@@ -1,0 +1,35 @@
+﻿
+E:\App\Habit-Tracker\app\_layout.tsx
+  10:6  warning  React Hook useEffect has a missing dependency: 'loadTheme'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\App\Habit-Tracker\app\index.tsx
+   6:9   warning  'width' is assigned a value but never used                                                                                                                                  @typescript-eslint/no-unused-vars
+  10:10  warning  'phase' is assigned a value but never used                                                                                                                                  @typescript-eslint/no-unused-vars
+  10:17  warning  'setPhase' is assigned a value but never used                                                                                                                               @typescript-eslint/no-unused-vars
+  45:6   warning  React Hook useEffect has missing dependencies: 'bgOpacity', 'logoOpacity', 'logoScale', 'router', and 'taglineOpacity'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\App\Habit-Tracker\src\screens\EditHabitScreen.tsx
+  25:27  warning  'setReminderEnabled' is assigned a value but never used          @typescript-eslint/no-unused-vars
+  26:24  warning  'setReminderTime' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  31:9   warning  'REMINDER_TIMES' is assigned a value but never used              @typescript-eslint/no-unused-vars
+  99:15  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  99:30  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+E:\App\Habit-Tracker\src\screens\HabitDetailScreen.tsx
+  38:6  warning  React Hook useEffect has a missing dependency: 'router'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\App\Habit-Tracker\src\screens\HomeScreen.tsx
+  47:6  warning  React Hook useEffect has missing dependencies: 'headerOpacity', 'headerTranslateY', and 'loadHabits'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  77:6  warning  React Hook useEffect has a missing dependency: 'activeHabits.length'. Either include it or remove the dependency array                                    react-hooks/exhaustive-deps
+  81:6  warning  React Hook useEffect has a missing dependency: 'progressWidth'. Either include it or remove the dependency array                                          react-hooks/exhaustive-deps
+
+E:\App\Habit-Tracker\src\screens\ProfileScreen.tsx
+  212:15  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  212:79  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+E:\App\Habit-Tracker\src\screens\StatsScreen.tsx
+  95:6  warning  React Hook useMemo has a missing dependency: 'activeHabits'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+Γ£û 17 problems (4 errors, 13 warnings)
+
+

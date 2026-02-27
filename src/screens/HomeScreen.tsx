@@ -34,7 +34,7 @@ export default function HomeScreen() {
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
   const { userName } = useThemeStore();
-  
+
 
   const progressWidth = useSharedValue(0);
   const headerOpacity = useSharedValue(0);
@@ -44,16 +44,16 @@ export default function HomeScreen() {
     loadHabits();
     headerOpacity.value = withTiming(1, { duration: 600 });
     headerTranslateY.value = withSpring(0, { damping: 12, stiffness: 100 });
-  }, []);
+  }, [loadHabits, headerOpacity, headerTranslateY]);
 
   const activeHabits = habits
-  .filter(h => !h.archived)
-  .filter(h => h.name.toLowerCase().includes(search.toLowerCase()));
+    .filter(h => !h.archived)
+    .filter(h => h.name.toLowerCase().includes(search.toLowerCase()));
 
-const archivedHabits = habits
-  .filter(h => h.archived)
-  .filter(h => h.name.toLowerCase().includes(search.toLowerCase()));
-  
+  const archivedHabits = habits
+    .filter(h => h.archived)
+    .filter(h => h.name.toLowerCase().includes(search.toLowerCase()));
+
   const completedCount = activeHabits.filter(h =>
     h.completedDates.includes(today)
   ).length;
@@ -74,11 +74,11 @@ const archivedHabits = habits
       setTimeout(() => confettiRef.current?.start(), 300);
     }
     prevCompletedRef.current = completedCount;
-  }, [completedCount]);
+  }, [completedCount, activeHabits.length]);
 
   useEffect(() => {
     progressWidth.value = withSpring(progress, { damping: 14, stiffness: 80 });
-  }, [progress]);
+  }, [progress, progressWidth]);
 
   const headerStyle = useAnimatedStyle(() => ({
     opacity: headerOpacity.value,
@@ -125,21 +125,21 @@ const archivedHabits = habits
 
       {/* Buscador */}
       <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-  <Text style={[styles.searchIcon, { color: colors.textMuted }]}>🔍</Text>
-  <TextInput
-    style={[styles.searchInput, { color: colors.text }]}
-    placeholder="Buscar hábitos..."
-    placeholderTextColor={colors.textMuted}
-    value={search}
-    onChangeText={setSearch}
-    clearButtonMode="while-editing"
-  />
-  {search.length > 0 && (
-    <TouchableOpacity onPress={() => setSearch('')}>
-      <Text style={[styles.searchClear, { color: colors.textMuted }]}>✕</Text>
-    </TouchableOpacity>
-  )}
-</View> 
+        <Text style={[styles.searchIcon, { color: colors.textMuted }]}>🔍</Text>
+        <TextInput
+          style={[styles.searchInput, { color: colors.text }]}
+          placeholder="Buscar hábitos..."
+          placeholderTextColor={colors.textMuted}
+          value={search}
+          onChangeText={setSearch}
+          clearButtonMode="while-editing"
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Text style={[styles.searchClear, { color: colors.textMuted }]}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Tarjeta de progreso */}
       <View style={[styles.progressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -187,7 +187,7 @@ const archivedHabits = habits
           ListFooterComponent={
             archivedHabits.length > 0 ? (
               <View style={styles.archivedSection}>
-                
+
                 {/* Header colapsable de archivados */}
                 <TouchableOpacity
                   style={[styles.archivedHeader, { borderColor: colors.border }]}
@@ -252,17 +252,17 @@ const styles = StyleSheet.create({
   archivedArrow: { fontSize: 12 },
   archivedItem: { opacity: 0.6 },
   searchContainer: {
-  flexDirection: 'row', alignItems: 'center',
-  marginHorizontal: 20, marginBottom: 8,
-  borderRadius: 14, paddingHorizontal: 14,
-  paddingVertical: 10, borderWidth: 1,
-},
-searchIcon: { fontSize: 16, marginRight: 8 },
-searchInput: { flex: 1, fontSize: 15 },
-searchClear: { fontSize: 14, paddingLeft: 8 },
-avatarBtn: {
-  width: 40, height: 40, borderRadius: 20,
-  justifyContent: 'center', alignItems: 'center',
-},
-avatarBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 20, marginBottom: 8,
+    borderRadius: 14, paddingHorizontal: 14,
+    paddingVertical: 10, borderWidth: 1,
+  },
+  searchIcon: { fontSize: 16, marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 15 },
+  searchClear: { fontSize: 14, paddingLeft: 8 },
+  avatarBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
 });

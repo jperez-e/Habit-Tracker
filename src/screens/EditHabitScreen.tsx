@@ -10,9 +10,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 
+import { habitSchema } from '../utils/habitValidation';
+
 // ✅ ⭐ agregado al inicio
-const ICONS = ['⭐','💪','📚','🏃','🧘','💧','🥗','😴','🎯','✍️','🎨','🎵','🌿'];
-const COLORS = ['#6C63FF','#FF6584','#43C6AC','#F7971E','#12c2e9','#f64f59','#c471ed','#4CAF50'];
+const ICONS = ['⭐', '💪', '📚', '🏃', '🧘', '💧', '🥗', '😴', '🎯', '✍️', '🎨', '🎵', '🌿'];
+const COLORS = ['#6C63FF', '#FF6584', '#43C6AC', '#F7971E', '#12c2e9', '#f64f59', '#c471ed', '#4CAF50'];
 
 export default function EditHabitScreen() {
   const router = useRouter();
@@ -20,13 +22,12 @@ export default function EditHabitScreen() {
   const { habitId } = useLocalSearchParams();
   const { habits, updateHabit } = useHabitStore();
   const habit = habits.find(h => h.id === habitId);
-  const [reminderEnabled, setReminderEnabled] = useState(habit?.reminderEnabled ?? false);
-  const [reminderTime, setReminderTime] = useState(habit?.reminderTime ?? '08:00');
+  const reminderEnabled = habit?.reminderEnabled ?? false;
+  const reminderTime = habit?.reminderTime ?? '08:00';
   const [name, setName] = useState(habit?.name ?? '');
   const [selectedIcon, setSelectedIcon] = useState(habit?.icon ?? '⭐');
   const [selectedColor, setSelectedColor] = useState(habit?.color ?? '#6C63FF');
   const [notes, setNotes] = useState(habit?.notes ?? ''); // ✅ carga notas existentes
-  const REMINDER_TIMES = ['06:00','07:00','08:00','09:00','12:00','18:00','20:00','22:00'];
 
 
   if (!habit) {
@@ -35,25 +36,36 @@ export default function EditHabitScreen() {
   }
 
   const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Por favor escribe un nombre para el hábito');
-      return;
+    try {
+      const validatedData = habitSchema.parse({
+        name,
+        icon: selectedIcon || '⭐',
+        color: selectedColor,
+        notes,
+      });
+
+      await updateHabit(habit.id, {
+        name: validatedData.name,
+        icon: validatedData.icon,
+        color: validatedData.color,
+        notes: validatedData.notes || '',
+        reminderEnabled,
+        reminderTime,
+      });
+
+      if (reminderEnabled) {
+        await scheduleHabitReminder(habit.id, validatedData.name, validatedData.icon, reminderTime);
+      } else {
+        await cancelHabitReminder(habit.id);
+      }
+      router.back();
+    } catch (error: any) {
+      if (error.errors && error.errors.length > 0) {
+        Alert.alert('Error', error.errors[0].message);
+      } else {
+        Alert.alert('Error', 'Ocurrió un error guardando tu hábito');
+      }
     }
-    await updateHabit(habit.id, {
-      name: name.trim(),
-      icon: selectedIcon || '⭐',
-      color: selectedColor,
-      notes: notes.trim(),
-      reminderEnabled,
-      reminderTime,
-    });
-   
-if (reminderEnabled) {
-  await scheduleHabitReminder(habit.id, name.trim(), selectedIcon, reminderTime);
-} else {
-  await cancelHabitReminder(habit.id);
-}
-router.back();
   };
 
   return (
@@ -83,7 +95,7 @@ router.back();
           </Text>
           {notes.trim() ? (
             <Text style={[styles.previewNotes, { color: colors.textMuted }]} numberOfLines={2}>
-              "{notes.trim()}"
+              &quot;{notes.trim()}&quot;
             </Text>
           ) : null}
         </View>

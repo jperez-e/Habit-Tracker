@@ -11,10 +11,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
+import { habitSchema } from '../utils/habitValidation';
 import { scheduleHabitReminder } from '../utils/notifications';
 
-const ICONS = ['⭐','💪','📚','🏃','🧘','💧','🥗','😴','🎯','✍️','🎨','🎵','🌿'];
-const COLORS = ['#6C63FF','#FF6584','#43C6AC','#F7971E','#12c2e9','#f64f59','#c471ed','#4CAF50'];
+const ICONS = ['⭐', '💪', '📚', '🏃', '🧘', '💧', '🥗', '😴', '🎯', '✍️', '🎨', '🎵', '🌿'];
+const COLORS = ['#6C63FF', '#FF6584', '#43C6AC', '#F7971E', '#12c2e9', '#f64f59', '#c471ed', '#4CAF50'];
 
 export default function AddHabitScreen() {
   const router = useRouter();
@@ -26,43 +27,54 @@ export default function AddHabitScreen() {
   const [notes, setNotes] = useState('');
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
-  const REMINDER_TIMES = ['06:00','07:00','08:00','09:00','12:00','18:00','20:00','22:00'];
+  const REMINDER_TIMES = ['06:00', '07:00', '08:00', '09:00', '12:00', '18:00', '20:00', '22:00'];
   const insets = useSafeAreaInsets();
 
   const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Por favor escribe un nombre para el hábito');
-      return;
-    }
-    const newHabit = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      icon: selectedIcon || '⭐', 
-      color: selectedColor,
-      notes: notes.trim(),
-      completedDates: [],
-      streak: 0,
-      createdAt: new Date().toISOString(),
-      archived: false,
-      reminderEnabled,
-      reminderTime,
-    };
-    addHabit(newHabit);
+    try {
+      const validatedData = habitSchema.parse({
+        name,
+        icon: selectedIcon || '⭐',
+        color: selectedColor,
+        notes,
+      });
 
-    if (reminderEnabled) {
-      await scheduleHabitReminder(newHabit.id, newHabit.name, newHabit.icon, reminderTime);
+      const newHabit = {
+        id: Date.now().toString(),
+        name: validatedData.name,
+        icon: validatedData.icon,
+        color: validatedData.color,
+        notes: validatedData.notes || '',
+        completedDates: [],
+        streak: 0,
+        createdAt: new Date().toISOString(),
+        archived: false,
+        reminderEnabled,
+        reminderTime,
+      };
+      addHabit(newHabit);
+
+      if (reminderEnabled) {
+        await scheduleHabitReminder(newHabit.id, newHabit.name, newHabit.icon, reminderTime);
+      }
+      router.back();
+    } catch (error: any) {
+      if (error.errors && error.errors.length > 0) {
+        Alert.alert('Error', error.errors[0].message);
+      } else {
+        Alert.alert('Error', 'Ocurrió un problema al guardar el hábito.');
+      }
     }
-    router.back();
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-    <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
 
 
 
       {/* Header */}
-     <View style={[
+      <View style={[
         styles.header,
         {
           borderBottomColor: colors.border,
@@ -77,8 +89,8 @@ export default function AddHabitScreen() {
           <Text style={[styles.save, { color: colors.primary }]}>Guardar</Text>
         </TouchableOpacity>
       </View>
-      
-     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Preview */}
         <View style={[styles.preview, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.previewIcon, { backgroundColor: selectedColor + '33' }]}>
@@ -101,67 +113,67 @@ export default function AddHabitScreen() {
         />
 
         {/* Notas */}
-<Text style={[styles.label, { color: colors.textMuted }]}>
-  Notas (opcional)
-</Text>
-<TextInput
-  style={[styles.notesInput, {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    color: colors.text,
-  }]}
-  placeholder="¿Por qué quieres este hábito? ¿Cómo lo harás?..."
-  placeholderTextColor={colors.textMuted}
-  value={notes}
-  onChangeText={setNotes}
-  multiline
-  numberOfLines={4}
-  maxLength={300}
-  textAlignVertical="top"
-/>
-<Text style={[styles.charCount, { color: colors.textMuted }]}>
-  {notes.length}/300
-</Text>
-
-{/* Recordatorio */}
-<Text style={[styles.label, { color: colors.textMuted }]}>Recordatorio</Text>
-<View style={[styles.reminderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-  <View style={styles.reminderLeft}>
-    <Text style={styles.reminderIcon}>🔔</Text>
-    <Text style={[styles.reminderLabel, { color: colors.text }]}>
-      Recordatorio diario
-    </Text>
-  </View>
-  <Switch
-    value={reminderEnabled}
-    onValueChange={setReminderEnabled}
-    trackColor={{ false: colors.border, true: colors.primary }}
-    thumbColor="#FFF"
-  />
-</View>
-
-{reminderEnabled && (
-  <View style={styles.timesGrid}>
-    {REMINDER_TIMES.map(time => (
-      <TouchableOpacity
-        key={time}
-        style={[
-          styles.timeBtn,
-          { backgroundColor: colors.card, borderColor: colors.border },
-          reminderTime === time && { backgroundColor: colors.primary, borderColor: colors.primary },
-        ]}
-        onPress={() => setReminderTime(time)}
-      >
-        <Text style={[
-          styles.timeBtnText,
-          { color: reminderTime === time ? '#FFF' : colors.text }
-        ]}>
-          {time}
+        <Text style={[styles.label, { color: colors.textMuted }]}>
+          Notas (opcional)
         </Text>
-      </TouchableOpacity>
-    ))}
-  </View>
-)}
+        <TextInput
+          style={[styles.notesInput, {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            color: colors.text,
+          }]}
+          placeholder="¿Por qué quieres este hábito? ¿Cómo lo harás?..."
+          placeholderTextColor={colors.textMuted}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          numberOfLines={4}
+          maxLength={300}
+          textAlignVertical="top"
+        />
+        <Text style={[styles.charCount, { color: colors.textMuted }]}>
+          {notes.length}/300
+        </Text>
+
+        {/* Recordatorio */}
+        <Text style={[styles.label, { color: colors.textMuted }]}>Recordatorio</Text>
+        <View style={[styles.reminderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.reminderLeft}>
+            <Text style={styles.reminderIcon}>🔔</Text>
+            <Text style={[styles.reminderLabel, { color: colors.text }]}>
+              Recordatorio diario
+            </Text>
+          </View>
+          <Switch
+            value={reminderEnabled}
+            onValueChange={setReminderEnabled}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#FFF"
+          />
+        </View>
+
+        {reminderEnabled && (
+          <View style={styles.timesGrid}>
+            {REMINDER_TIMES.map(time => (
+              <TouchableOpacity
+                key={time}
+                style={[
+                  styles.timeBtn,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  reminderTime === time && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+                onPress={() => setReminderTime(time)}
+              >
+                <Text style={[
+                  styles.timeBtnText,
+                  { color: reminderTime === time ? '#FFF' : colors.text }
+                ]}>
+                  {time}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Íconos */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Ícono</Text>
@@ -170,7 +182,7 @@ export default function AddHabitScreen() {
             <TouchableOpacity
               key={icon}
               style={[styles.iconBtn, { backgroundColor: colors.card },
-                selectedIcon === icon && { borderColor: colors.primary, backgroundColor: colors.primary + '22' }]}
+              selectedIcon === icon && { borderColor: colors.primary, backgroundColor: colors.primary + '22' }]}
               onPress={() => setSelectedIcon(icon)}
             >
               <Text style={styles.iconText}>{icon}</Text>
@@ -185,7 +197,7 @@ export default function AddHabitScreen() {
             <TouchableOpacity
               key={color}
               style={[styles.colorBtn, { backgroundColor: color },
-                selectedColor === color && styles.colorBtnSelected]}
+              selectedColor === color && styles.colorBtnSelected]}
               onPress={() => setSelectedColor(color)}
             >
               {selectedColor === color && (
@@ -204,7 +216,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingHorizontal: 20, 
+    alignItems: 'center', paddingHorizontal: 20,
     paddingVertical: 16, paddingBottom: 16,
     borderBottomWidth: 1,
   },
@@ -243,26 +255,26 @@ const styles = StyleSheet.create({
   colorBtnSelected: { borderColor: '#FFF' },
   colorCheck: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
 
- notesInput: {
-  borderRadius: 14, padding: 16, fontSize: 15,
-  borderWidth: 1, marginBottom: 4,
-  minHeight: 110,
-},
-charCount: { fontSize: 11, textAlign: 'right', marginBottom: 24 },
+  notesInput: {
+    borderRadius: 14, padding: 16, fontSize: 15,
+    borderWidth: 1, marginBottom: 4,
+    minHeight: 110,
+  },
+  charCount: { fontSize: 11, textAlign: 'right', marginBottom: 24 },
 
-// Estilos
-reminderRow: {
-  flexDirection: 'row', justifyContent: 'space-between',
-  alignItems: 'center', borderRadius: 14, padding: 16,
-  borderWidth: 1, marginBottom: 12,
-},
-reminderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-reminderIcon: { fontSize: 20 },
-reminderLabel: { fontSize: 15, fontWeight: '500' },
-timesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-timeBtn: {
-  paddingHorizontal: 16, paddingVertical: 8,
-  borderRadius: 20, borderWidth: 1,
-},
-timeBtnText: { fontSize: 14, fontWeight: '500' },
+  // Estilos
+  reminderRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', borderRadius: 14, padding: 16,
+    borderWidth: 1, marginBottom: 12,
+  },
+  reminderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  reminderIcon: { fontSize: 20 },
+  reminderLabel: { fontSize: 15, fontWeight: '500' },
+  timesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  timeBtn: {
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1,
+  },
+  timeBtnText: { fontSize: 14, fontWeight: '500' },
 });

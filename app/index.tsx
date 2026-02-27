@@ -1,13 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
 export default function Index() {
   const router = useRouter();
-  const [phase, setPhase] = useState<'logo' | 'tagline' | 'done'>('logo');
 
   const logoScale = useRef(new Animated.Value(0)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -42,7 +39,7 @@ export default function Index() {
         });
       });
     });
-  }, []);
+  }, [bgOpacity, logoOpacity, logoScale, router, taglineOpacity]);
 
   return (
     <Animated.View style={[styles.container, { opacity: bgOpacity }]}>

@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -45,12 +46,14 @@ export default function HabitCard({ habit, onToggle }: Props) {
     );
 
     if (!isCompleted) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       checkScale.value = withSequence(
         withSpring(1.4, { damping: 8, stiffness: 300 }),
         withSpring(1, { damping: 10, stiffness: 200 })
       );
       runOnJS(playCompleteSound)();
     } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       checkScale.value = withTiming(0, { duration: 150 });
       runOnJS(playUncompleteSound)();
     }

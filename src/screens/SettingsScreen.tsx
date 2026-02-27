@@ -43,24 +43,25 @@ function SettingRow({ icon, label, subtitle, onPress, right, danger, colors }: S
   );
 }
 
-const HOURS = ['06:00','07:00','08:00','09:00','10:00','18:00','20:00','21:00'];
+const HOURS = ['06:00', '07:00', '08:00', '09:00', '10:00', '18:00', '20:00', '21:00'];
 
 export default function SettingsScreen() {
   const colors = useColors();
   const { habits, clearAllHabits } = useHabitStore();
-  const { isDark, toggleTheme } = useThemeStore();
+  const { themeMode, setThemeMode } = useThemeStore();
   const [notifications, setNotifications] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
   const { userName, setUserName } = useThemeStore();
   const totalHabits = habits.length;
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
   const [nameModalVisible, setNameModalVisible] = useState(false);
   const [tempName, setTempName] = useState(userName);
 
-useEffect(() => {
-  setTempName(userName);
-}, [userName]);
+  useEffect(() => {
+    setTempName(userName);
+  }, [userName]);
 
   useEffect(() => {
     const loadPrefs = async () => {
@@ -73,16 +74,16 @@ useEffect(() => {
   }, []);
 
   const handleEditName = () => {
-  setTempName(userName);
-  setNameModalVisible(true);
-};
+    setTempName(userName);
+    setNameModalVisible(true);
+  };
 
-const handleSaveName = async () => {
-  if (tempName.trim()) {
-    await setUserName(tempName.trim());
-  }
-  setNameModalVisible(false);
-};
+  const handleSaveName = async () => {
+    if (tempName.trim()) {
+      await setUserName(tempName.trim());
+    }
+    setNameModalVisible(false);
+  };
 
   const handleClearData = () => {
     Alert.alert(
@@ -108,56 +109,56 @@ const handleSaveName = async () => {
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* ← Modal para editar nombre */}
-    <Modal
-      visible={nameModalVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setNameModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>
-            👤 Tu nombre
-          </Text>
-          <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
-            Así aparecerás en el saludo
-          </Text>
-          <TextInput
-            style={[styles.modalInput, {
-              backgroundColor: colors.background,
-              borderColor: colors.primary,
-              color: colors.text,
-            }]}
-            value={tempName}
-            onChangeText={setTempName}
-            placeholder="Tu nombre..."
-            placeholderTextColor={colors.textMuted}
-            maxLength={20}
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={handleSaveName}
-          />
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalBtn, { borderColor: colors.border, borderWidth: 1 }]}
-              onPress={() => setNameModalVisible(false)}
-            >
-              <Text style={[styles.modalBtnText, { color: colors.textMuted }]}>
-                Cancelar
+        <Modal
+          visible={nameModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setNameModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                👤 Tu nombre
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: colors.primary }]}
-              onPress={handleSaveName}
-            >
-              <Text style={[styles.modalBtnText, { color: '#FFF' }]}>
-                Guardar
+              <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+                Así aparecerás en el saludo
               </Text>
-            </TouchableOpacity>
+              <TextInput
+                style={[styles.modalInput, {
+                  backgroundColor: colors.background,
+                  borderColor: colors.primary,
+                  color: colors.text,
+                }]}
+                value={tempName}
+                onChangeText={setTempName}
+                placeholder="Tu nombre..."
+                placeholderTextColor={colors.textMuted}
+                maxLength={20}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleSaveName}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { borderColor: colors.border, borderWidth: 1 }]}
+                  onPress={() => setNameModalVisible(false)}
+                >
+                  <Text style={[styles.modalBtnText, { color: colors.textMuted }]}>
+                    Cancelar
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleSaveName}
+                >
+                  <Text style={[styles.modalBtnText, { color: '#FFF' }]}>
+                    Guardar
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
-    </Modal>
+        </Modal>
 
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Configuración</Text>
@@ -180,26 +181,39 @@ const handleSaveName = async () => {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <SettingRow
             icon="🌙"
-            label="Modo oscuro"
-            subtitle="Tema actual de la app"
+            label="Tema de la aplicación"
+            subtitle={themeMode === 'system' ? 'Sistema' : themeMode === 'dark' ? 'Oscuro' : 'Claro'}
             colors={colors}
-            right={
-              <Switch
-                value={isDark}
-                onValueChange={toggleTheme}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor="#FFF"
-              />
-            }
+            onPress={() => setShowThemePicker(!showThemePicker)}
           />
+          {showThemePicker && (
+            <View style={styles.timePicker}>
+              {[
+                { label: 'Sistema', value: 'system' },
+                { label: 'Oscuro', value: 'dark' },
+                { label: 'Claro', value: 'light' }
+              ].map((themeOpt) => (
+                <TouchableOpacity
+                  key={themeOpt.value}
+                  style={[styles.timeBtn, { backgroundColor: colors.border },
+                  themeMode === themeOpt.value && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
+                  onPress={() => { setThemeMode(themeOpt.value as any); setShowThemePicker(false); }}
+                >
+                  <Text style={[styles.timeText, { color: themeMode === themeOpt.value ? colors.primary : colors.textMuted }]}>
+                    {themeOpt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-           <SettingRow
-             icon="👤"
-             label="Tu nombre"
-             subtitle={userName || 'Sin nombre'}
-             colors={colors}
-             onPress={handleEditName}
-           />
+          <SettingRow
+            icon="👤"
+            label="Tu nombre"
+            subtitle={userName || 'Sin nombre'}
+            colors={colors}
+            onPress={handleEditName}
+          />
           <SettingRow
             icon="🔔"
             label="Notificaciones"
@@ -228,7 +242,7 @@ const handleSaveName = async () => {
                 <TouchableOpacity
                   key={time}
                   style={[styles.timeBtn, { backgroundColor: colors.border },
-                    reminderTime === time && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
+                  reminderTime === time && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
                   onPress={() => { setReminderTime(time); setShowTimePicker(false); }}
                 >
                   <Text style={[styles.timeText, { color: reminderTime === time ? colors.primary : colors.textMuted }]}>
@@ -272,15 +286,15 @@ const handleSaveName = async () => {
         </View>
 
         <View style={styles.footerContainer}>
-  <View style={[styles.footerDivider, { backgroundColor: colors.primary + '44' }]} />
-  <Text style={[styles.footerEmoji]}>💜</Text>
-  <Text style={[styles.footerText, { color: colors.text }]}>
-    Hecho por <Text style={{ color: colors.primary, fontWeight: 'bold' }}>José Pérez</Text>
-  </Text>
-  <Text style={[styles.footerSub, { color: colors.textMuted }]}>
-    Habit Tracker · 2026
-  </Text>
-</View>
+          <View style={[styles.footerDivider, { backgroundColor: colors.primary + '44' }]} />
+          <Text style={[styles.footerEmoji]}>💜</Text>
+          <Text style={[styles.footerText, { color: colors.text }]}>
+            Hecho por <Text style={{ color: colors.primary, fontWeight: 'bold' }}>José Pérez</Text>
+          </Text>
+          <Text style={[styles.footerSub, { color: colors.textMuted }]}>
+            Habit Tracker · 2026
+          </Text>
+        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -317,32 +331,32 @@ const styles = StyleSheet.create({
   timeBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'transparent' },
   timeText: { fontSize: 14 },
   footerContainer: {
-  alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20,
-},
-footerDivider: {
-  width: 60, height: 3, borderRadius: 2, marginBottom: 20,
-},
-footerEmoji: { fontSize: 32, marginBottom: 8 },
-footerText: { fontSize: 16, marginBottom: 4 },
-footerSub: { fontSize: 13 },
+    alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20,
+  },
+  footerDivider: {
+    width: 60, height: 3, borderRadius: 2, marginBottom: 20,
+  },
+  footerEmoji: { fontSize: 32, marginBottom: 8 },
+  footerText: { fontSize: 16, marginBottom: 4 },
+  footerSub: { fontSize: 13 },
 
-modalOverlay: {
-  flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
-  justifyContent: 'center', alignItems: 'center', padding: 24,
-},
-modalCard: {
-  width: '100%', borderRadius: 24, padding: 24, borderWidth: 1,
-},
-modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' },
-modalSubtitle: { fontSize: 14, marginBottom: 20, textAlign: 'center' },
-modalInput: {
-  borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
-  fontSize: 16, borderWidth: 2, marginBottom: 20, textAlign: 'center',
-},
-modalButtons: { flexDirection: 'row', gap: 12 },
-modalBtn: {
-  flex: 1, paddingVertical: 14, borderRadius: 14,
-  alignItems: 'center', justifyContent: 'center',
-},
-modalBtnText: { fontSize: 15, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  modalCard: {
+    width: '100%', borderRadius: 24, padding: 24, borderWidth: 1,
+  },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' },
+  modalSubtitle: { fontSize: 14, marginBottom: 20, textAlign: 'center' },
+  modalInput: {
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 16, borderWidth: 2, marginBottom: 20, textAlign: 'center',
+  },
+  modalButtons: { flexDirection: 'row', gap: 12 },
+  modalBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalBtnText: { fontSize: 15, fontWeight: '600' },
 });

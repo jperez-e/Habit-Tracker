@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
-    Modal,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
@@ -67,8 +67,8 @@ export default function ProfileScreen() {
 
   const startDateFormatted = appStartDate
     ? new Date(appStartDate + 'T12:00:00').toLocaleDateString('es-ES', {
-        day: 'numeric', month: 'long', year: 'numeric'
-      })
+      day: 'numeric', month: 'long', year: 'numeric'
+    })
     : '—';
 
   // Avatar con inicial
@@ -208,8 +208,8 @@ export default function ProfileScreen() {
             style={[styles.motivationBox, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '44' }]}
             onPress={() => { setTempMotivation(userMotivation); setMotivationModalVisible(true); }}
           >
-            <Text style={[styles.motivationText, { color: colors.primary }]}>
-              "{userMotivation || 'Toca para agregar tu frase motivacional ✨'}"
+            <Text style={[styles.motivationText, { color: colors.text, fontStyle: 'italic' }]}>
+              &quot;{userMotivation || 'El éxito es la suma de pequeños esfuerzos repetidos día tras día.'}&quot;
             </Text>
             <Text style={[styles.motivationEdit, { color: colors.primary }]}>✏️ Editar</Text>
           </TouchableOpacity>
@@ -251,7 +251,7 @@ export default function ProfileScreen() {
           <Text style={[styles.successSub, { color: colors.textMuted }]}>
             {globalSuccessRate >= 80 ? '🏆 ¡Rendimiento excelente!'
               : globalSuccessRate >= 50 ? '💪 Vas por buen camino'
-              : '🌱 Sigue adelante, cada día cuenta'}
+                : '🌱 Sigue adelante, cada día cuenta'}
           </Text>
         </View>
 

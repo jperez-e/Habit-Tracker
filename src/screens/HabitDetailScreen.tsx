@@ -35,7 +35,7 @@ export default function HabitDetailScreen() {
 
   useEffect(() => {
     if (!habit) router.replace('/(tabs)/home' as any);
-  }, [habit]);
+  }, [habit, router]);
 
   if (!habit) return null;
 
@@ -120,7 +120,7 @@ export default function HabitDetailScreen() {
             <Text style={[styles.delete, { color: colors.danger }]}>Eliminar</Text>
           </TouchableOpacity>
         </View>
-      </View> 
+      </View>
       {/* ✅ Cierre del header */}
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -138,7 +138,7 @@ export default function HabitDetailScreen() {
 
           <TouchableOpacity
             style={[styles.toggleBtn, isCompletedToday && styles.toggleBtnDone,
-              { borderColor: habit.color }]}
+            { borderColor: habit.color }]}
             onPress={() => toggleHabit(habit.id, today)}
           >
             <Text style={[styles.toggleBtnText, { color: isCompletedToday ? '#FFF' : habit.color }]}>
@@ -190,41 +190,41 @@ export default function HabitDetailScreen() {
         </View>
 
         {/* Notas del hábito */}
-{habit.notes ? (
-  <View style={styles.section}>
-    <Text style={[styles.sectionTitle, { color: colors.text }]}>
-      📝 Notas
-    </Text>
-    <View style={[styles.notesCard, {
-      backgroundColor: colors.card,
-      borderColor: colors.border,
-    }]}>
-      <Text style={[styles.notesText, { color: colors.text }]}>
-        {habit.notes}
-      </Text>
-    </View>
-  </View>
-) : (
-  <TouchableOpacity
-    style={[styles.addNotesBtn, { borderColor: colors.border }]}
-    onPress={() => router.push({
-      pathname: '/edit-habit' as any,
-      params: { habitId: habit.id }
-    })}
-  >
-    <Text style={[styles.addNotesBtnText, { color: colors.textMuted }]}>
-      📝 Agregar notas a este hábito
-    </Text>
-  </TouchableOpacity>
-)}
+        {habit.notes ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              📝 Notas
+            </Text>
+            <View style={[styles.notesCard, {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            }]}>
+              <Text style={[styles.notesText, { color: colors.text }]}>
+                {habit.notes}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.addNotesBtn, { borderColor: colors.border }]}
+            onPress={() => router.push({
+              pathname: '/edit-habit' as any,
+              params: { habitId: habit.id }
+            })}
+          >
+            <Text style={[styles.addNotesBtnText, { color: colors.textMuted }]}>
+              📝 Agregar notas a este hábito
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <View style={[styles.motivationCard, { backgroundColor: colors.card, borderColor: habit.color }]}>
           <Text style={[styles.motivationText, { color: colors.textMuted }]}>
             {completionRate >= 80
               ? '🏆 ¡Excelente! Estás construyendo un hábito sólido.'
               : completionRate >= 50
-              ? '💪 Vas bien, sigue adelante. La constancia es la clave.'
-              : '🌱 Cada día cuenta. No te rindas, estás empezando algo grande.'}
+                ? '💪 Vas bien, sigue adelante. La constancia es la clave.'
+                : '🌱 Cada día cuenta. No te rindas, estás empezando algo grande.'}
           </Text>
         </View>
 
@@ -268,14 +268,14 @@ const styles = StyleSheet.create({
   motivationText: { fontSize: 15, lineHeight: 22, textAlign: 'center' },
 
   notesCard: {
-  borderRadius: 16, padding: 16, borderWidth: 1,
-},
-notesText: { fontSize: 15, lineHeight: 24 },
-addNotesBtn: {
-  marginHorizontal: 20, marginBottom: 24,
-  borderRadius: 16, padding: 16,
-  borderWidth: 1, borderStyle: 'dashed',
-  alignItems: 'center',
-},
-addNotesBtnText: { fontSize: 14 },
+    borderRadius: 16, padding: 16, borderWidth: 1,
+  },
+  notesText: { fontSize: 15, lineHeight: 24 },
+  addNotesBtn: {
+    marginHorizontal: 20, marginBottom: 24,
+    borderRadius: 16, padding: 16,
+    borderWidth: 1, borderStyle: 'dashed',
+    alignItems: 'center',
+  },
+  addNotesBtnText: { fontSize: 14 },
 });
