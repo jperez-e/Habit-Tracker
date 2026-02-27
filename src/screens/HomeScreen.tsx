@@ -104,6 +104,7 @@ const archivedHabits = habits
         colors={['#6C63FF', '#FF6584', '#43C6AC', '#F7971E', '#4CAF50']}
       />
 
+
       {/* Header animado */}
       <Animated.View style={[styles.header, headerStyle]}>
         <View>
@@ -259,4 +260,9 @@ const styles = StyleSheet.create({
 searchIcon: { fontSize: 16, marginRight: 8 },
 searchInput: { flex: 1, fontSize: 15 },
 searchClear: { fontSize: 14, paddingLeft: 8 },
+avatarBtn: {
+  width: 40, height: 40, borderRadius: 20,
+  justifyContent: 'center', alignItems: 'center',
+},
+avatarBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
 });

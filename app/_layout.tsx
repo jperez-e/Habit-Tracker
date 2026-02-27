@@ -17,6 +17,7 @@ export default function RootLayout() {
       <Stack.Screen name="add-habit" />
       <Stack.Screen name="habit-detail" />
       <Stack.Screen name="edit-habit" />
+      <Stack.Screen name="profile" />
     </Stack>
   );
 }

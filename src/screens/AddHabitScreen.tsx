@@ -2,13 +2,13 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet, Switch, Text, TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { scheduleHabitReminder } from '../utils/notifications';
@@ -27,6 +27,7 @@ export default function AddHabitScreen() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const REMINDER_TIMES = ['06:00','07:00','08:00','09:00','12:00','18:00','20:00','22:00'];
+  const insets = useSafeAreaInsets();
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -55,11 +56,19 @@ export default function AddHabitScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
+
+
 
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+     <View style={[
+        styles.header,
+        {
+          borderBottomColor: colors.border,
+          paddingTop: 8,
+        }
+      ]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.cancel, { color: colors.textMuted }]}>Cancelar</Text>
         </TouchableOpacity>
@@ -68,9 +77,8 @@ export default function AddHabitScreen() {
           <Text style={[styles.save, { color: colors.primary }]}>Guardar</Text>
         </TouchableOpacity>
       </View>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
+      
+     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Preview */}
         <View style={[styles.preview, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.previewIcon, { backgroundColor: selectedColor + '33' }]}>
@@ -188,7 +196,7 @@ export default function AddHabitScreen() {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -196,7 +204,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16,
+    alignItems: 'center', paddingHorizontal: 20, 
+    paddingVertical: 16, paddingBottom: 16,
     borderBottomWidth: 1,
   },
   cancel: { fontSize: 16 },
