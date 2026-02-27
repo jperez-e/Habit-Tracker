@@ -40,10 +40,17 @@ const SLIDES = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { setUserName } = useThemeStore();
+  const { setUserName, userName: storedName } = useThemeStore();
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(storedName || '');
+
+  // Pre-fill name if it becomes available (e.g. from Supabase sync in layout)
+  React.useEffect(() => {
+    if (storedName && !name) {
+      setName(storedName);
+    }
+  }, [storedName, name]);
 
   const handleNext = () => {
     if (currentIndex < SLIDES.length - 1) {

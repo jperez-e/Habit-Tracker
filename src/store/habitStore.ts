@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 
@@ -24,6 +25,7 @@ type HabitStore = {
   deleteHabit: (id: string) => Promise<void>;
   archiveHabit: (id: string) => Promise<void>; // ← nuevo
   clearAllHabits: () => Promise<void>;
+  resetStore: () => Promise<void>;
   loadHabits: () => Promise<void>;
 };
 
@@ -68,7 +70,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       // Sync with Supabase
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('habits').insert([
+        console.log('Syncing new habit to cloud:', newHabit.name);
+        const { error: syncError } = await supabase.from('habits').insert([
           {
             id: newHabit.id,
             user_id: user.id,
@@ -83,6 +86,12 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
             created_at: newHabit.createdAt,
           },
         ]);
+        if (syncError) {
+          console.error('Error syncing habit to Supabase:', syncError.message, syncError.details);
+          Alert.alert('Error de Sincronización', 'No pudimos guardar tu hábito en la nube: ' + syncError.message);
+        } else {
+          console.log('Habit synced successfully!');
+        }
       }
     } catch (error) {
       console.error('Error saving habit to storage:', error);
@@ -200,6 +209,15 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     }
   },
 
+  resetStore: async () => {
+    try {
+      set({ habits: [] });
+      await AsyncStorage.removeItem('habits');
+    } catch (error) {
+      console.error('Error resetting store:', error);
+    }
+  },
+
   loadHabits: async () => {
     try {
       // 1. Load local
@@ -209,12 +227,19 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       // 2. Load from Supabase if logged in
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: cloudHabits, error } = await supabase
+        console.log('Loading habits from Supabase for user:', user.email);
+        const { data: cloudHabits, error: cloudError } = await supabase
           .from('habits')
           .select('*')
           .eq('user_id', user.id);
 
-        if (!error && cloudHabits) {
+        if (cloudError) {
+          console.error('Error fetching habits from cloud:', cloudError.message);
+          Alert.alert('Error de Carga', 'No pudimos recuperar tus hábitos de la nube.');
+        }
+
+        if (!cloudError && cloudHabits) {
+          console.log(`Found ${cloudHabits.length} habits in cloud.`);
           // Merge logic: prefer cloud data, but push local if not in cloud
           const merged: Habit[] = [...localHabits];
 

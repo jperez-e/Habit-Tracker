@@ -6,7 +6,7 @@ import AuthScreen from '../src/screens/AuthScreen';
 import { useThemeStore } from '../src/store/themeStore';
 
 export default function RootLayout() {
-  const { loadTheme } = useThemeStore();
+  const { loadTheme, setUserName, userName } = useThemeStore();
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
 
@@ -15,12 +15,18 @@ export default function RootLayout() {
 
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.user_metadata?.username) {
+        setUserName(session.user.user_metadata.username);
+      }
       setSession(session);
       setInitialized(true);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.user_metadata?.username) {
+        setUserName(session.user.user_metadata.username);
+      }
       setSession(session);
     });
 

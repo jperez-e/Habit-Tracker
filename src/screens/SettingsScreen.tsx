@@ -48,7 +48,7 @@ const HOURS = ['06:00', '07:00', '08:00', '09:00', '10:00', '18:00', '20:00', '2
 
 export default function SettingsScreen() {
   const colors = useColors();
-  const { habits, clearAllHabits } = useHabitStore();
+  const { habits, clearAllHabits, resetStore } = useHabitStore();
   const { themeMode, setThemeMode } = useThemeStore();
   const [notifications, setNotifications] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
@@ -97,7 +97,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await supabase.auth.signOut();
-            await clearAllHabits();
+            await resetStore();
           }
         }
       ]
