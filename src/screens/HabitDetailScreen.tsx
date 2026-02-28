@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert, ScrollView,
+  Modal,
   Share,
   StatusBar, StyleSheet,
-  Text, TouchableOpacity, View
+  Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
@@ -31,6 +32,8 @@ export default function HabitDetailScreen() {
   const colors = useColors();
   const { habitId } = useLocalSearchParams();
   const { habits, toggleHabit, deleteHabit, archiveHabit } = useHabitStore();
+  const [retroModalVisible, setRetroModalVisible] = useState(false);
+  const [retroDate, setRetroDate] = useState(getTodayString());
   const habit: Habit | undefined = habits.find((h) => h.id === habitId);
 
   useEffect(() => {
@@ -44,6 +47,17 @@ export default function HabitDetailScreen() {
   const isCompletedToday = habit.completedDates.includes(today);
   const completedThisMonth = last30.filter(d => habit.completedDates.includes(d)).length;
   const completionRate = Math.round((completedThisMonth / 30) * 100);
+
+  const handleRetroSave = () => {
+    // Validamos formato ISO corto para evitar fechas ambiguas según región/dispositivo.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(retroDate)) {
+      Alert.alert('Error', 'Formato de fecha inválido. Usa YYYY-MM-DD.');
+      return;
+    }
+
+    toggleHabit(habit.id, retroDate);
+    setRetroModalVisible(false);
+  };
 
   const handleShare = async () => {
     const message =
@@ -78,6 +92,48 @@ export default function HabitDetailScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
+
+      <Modal
+        visible={retroModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRetroModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Registro retroactivo
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+              Escribe la fecha en formato YYYY-MM-DD
+            </Text>
+            <TextInput
+              value={retroDate}
+              onChangeText={setRetroDate}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="numbers-and-punctuation"
+              placeholder="2026-02-25"
+              placeholderTextColor={colors.textMuted}
+              style={[styles.modalInput, { color: colors.text, borderColor: colors.primary, backgroundColor: colors.background }]}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { borderColor: colors.border, borderWidth: 1 }]}
+                onPress={() => setRetroModalVisible(false)}
+              >
+                <Text style={[styles.modalBtnText, { color: colors.textMuted }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+                onPress={handleRetroSave}
+              >
+                <Text style={[styles.modalBtnText, { color: '#FFF' }]}>Registrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ✅ Header correctamente cerrado */}
       <View style={styles.header}>
@@ -152,6 +208,18 @@ export default function HabitDetailScreen() {
           >
             <Text style={[styles.shareBtnText, { color: colors.textMuted }]}>
               📤 Compartir progreso
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.retroBtn, { borderColor: colors.border }]}
+            onPress={() => {
+              setRetroDate(today);
+              setRetroModalVisible(true);
+            }}
+          >
+            <Text style={[styles.retroBtnText, { color: colors.primary }]}>
+              📅 Registrar logro antiguo
             </Text>
           </TouchableOpacity>
         </View>
@@ -278,4 +346,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addNotesBtnText: { fontSize: 14 },
+  retroBtn: { marginTop: 12, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderStyle: 'dotted' },
+  retroBtnText: { fontSize: 14, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 6, textAlign: 'center' },
+  modalSubtitle: { fontSize: 13, marginBottom: 14, textAlign: 'center' },
+  modalInput: {
+    borderWidth: 2,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalButtons: { flexDirection: 'row', gap: 10 },
+  modalBtn: {
+    flex: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  modalBtnText: { fontSize: 14, fontWeight: '600' },
 });

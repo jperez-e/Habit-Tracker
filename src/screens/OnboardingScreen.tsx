@@ -6,10 +6,10 @@ import {
   Platform, StatusBar, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '../store/themeStore';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const SLIDES = [
   {
@@ -40,6 +40,7 @@ const SLIDES = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { setUserName, userName: storedName } = useThemeStore();
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -76,21 +77,23 @@ export default function OnboardingScreen() {
   const currentSlide = SLIDES[currentIndex];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       {/* Botón omitir */}
       {!isLastSlide && (
-        <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
+        <TouchableOpacity
+          style={[styles.skipBtn, { top: insets.top + 20 }]}
+          onPress={handleSkip}
+        >
           <Text style={styles.skipText}>Omitir</Text>
         </TouchableOpacity>
       )}
 
-      {/* ✅ KeyboardAvoidingView FUERA del FlatList */}
+      {/* KeyboardAvoidingView */}
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <FlatList
           ref={flatListRef}
@@ -102,10 +105,8 @@ export default function OnboardingScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.flatList}
           renderItem={({ item }) => (
-            // ✅ Cada slide tiene altura fija
-            <View style={[styles.slide, { width, height: height * 0.65 }]}>
-
-              {/* ✅ Círculo con emoji — estructura limpia */}
+            <View style={[styles.slide, { width }]}>
+              {/* Círculo con emoji */}
               <View style={[styles.circle, { backgroundColor: item.color + '22' }]}>
                 <View style={[styles.circleInner, { backgroundColor: item.color + '44' }]}>
                   <Text style={styles.emoji}>{item.emoji}</Text>
@@ -115,7 +116,6 @@ export default function OnboardingScreen() {
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.subtitle}>{item.subtitle}</Text>
 
-              {/* Input solo en la última diapositiva */}
               {item.isName && (
                 <View style={styles.inputWrapper}>
                   <TextInput
@@ -153,7 +153,7 @@ export default function OnboardingScreen() {
       </View>
 
       {/* Botón principal */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) + 20 }]}>
         {isLastSlide ? (
           <TouchableOpacity
             style={[styles.btn, { backgroundColor: currentSlide.color }]}
@@ -172,7 +172,7 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -180,32 +180,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#12121E' },
   keyboardView: { flex: 1 },
   flatList: { flex: 1 },
-  skipBtn: { position: 'absolute', top: 56, right: 24, zIndex: 10 },
+  skipBtn: { position: 'absolute', right: 24, zIndex: 10 },
   skipText: { color: '#888', fontSize: 15 },
   slide: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
-    paddingVertical: 20,
   },
   circle: {
-    width: 200, height: 200, borderRadius: 100,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 40,
+    width: 180, height: 180, borderRadius: 90,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 30,
   },
   circleInner: {
-    width: 145, height: 145, borderRadius: 72,
+    width: 130, height: 130, borderRadius: 65,
     justifyContent: 'center', alignItems: 'center',
   },
-  emoji: { fontSize: 72 },
+  emoji: { fontSize: 64 },
   title: {
-    fontSize: 30, fontWeight: 'bold', color: '#FFF',
-    textAlign: 'center', marginBottom: 14, lineHeight: 38,
+    fontSize: 28, fontWeight: 'bold', color: '#FFF',
+    textAlign: 'center', marginBottom: 12, lineHeight: 36,
   },
   subtitle: {
     fontSize: 15, color: '#888', textAlign: 'center',
-    lineHeight: 24, paddingHorizontal: 10,
+    lineHeight: 22, paddingHorizontal: 10,
   },
-  inputWrapper: { marginTop: 28, width: '100%' },
+  inputWrapper: { marginTop: 24, width: '100%' },
   nameInput: {
     backgroundColor: '#1E1E2E', borderRadius: 16,
     paddingHorizontal: 20, paddingVertical: 16,
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2E2E3E' },
   dotActive: { width: 24, height: 8, borderRadius: 4 },
-  footer: { paddingHorizontal: 24, paddingBottom: 32 },
+  footer: { paddingHorizontal: 24 },
   btn: {
     paddingVertical: 16, borderRadius: 30,
     alignItems: 'center', justifyContent: 'center',

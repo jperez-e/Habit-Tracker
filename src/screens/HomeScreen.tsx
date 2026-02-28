@@ -107,8 +107,8 @@ export default function HomeScreen() {
 
       {/* Header animado */}
       <Animated.View style={[styles.header, headerStyle]}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.text }]}>
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
             {`${getGreeting()}${userName ? `, ${userName}` : ''} 👋`}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>

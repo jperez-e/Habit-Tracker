@@ -119,7 +119,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         if (updates.reminderTime !== undefined) dbUpdates.reminder_time = updates.reminderTime;
         if (updates.completedDates !== undefined) dbUpdates.completed_dates = updates.completedDates;
 
-        await supabase.from('habits').update(dbUpdates).eq('id', id);
+        // Doble filtro por seguridad: evita afectar hábitos de otro usuario si cambia RLS.
+        await supabase.from('habits').update(dbUpdates).eq('id', id).eq('user_id', user.id);
       }
     } catch (error) {
       console.error('Error updating habit in storage:', error);
@@ -148,7 +149,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       // Sync with Supabase
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('habits').update({ completed_dates: finalDates }).eq('id', id);
+        // Doble filtro por seguridad: id + usuario autenticado.
+        await supabase.from('habits').update({ completed_dates: finalDates }).eq('id', id).eq('user_id', user.id);
       }
     } catch (error) {
       console.error('Error toggling habit in storage:', error);
@@ -164,7 +166,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       // Sync with Supabase
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('habits').delete().eq('id', id);
+        // Doble filtro por seguridad: id + usuario autenticado.
+        await supabase.from('habits').delete().eq('id', id).eq('user_id', user.id);
       }
     } catch (error) {
       console.error('Error deleting habit from storage:', error);
@@ -187,7 +190,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       // Sync with Supabase
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('habits').update({ archived: isArchived }).eq('id', id);
+        // Doble filtro por seguridad: id + usuario autenticado.
+        await supabase.from('habits').update({ archived: isArchived }).eq('id', id).eq('user_id', user.id);
       }
     } catch (error) {
       console.error('Error archiving habit in storage:', error);

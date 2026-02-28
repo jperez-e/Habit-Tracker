@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -75,6 +76,18 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
   setUserName: async (name: string) => {
     set({ userName: name });
     await AsyncStorage.setItem('user_name', name);
+
+    // Sync with Supabase metadata if logged in
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await supabase.auth.updateUser({
+          data: { username: name }
+        });
+      }
+    } catch (error) {
+      console.error('Error syncing username to Supabase:', error);
+    }
   },
   setUserMotivation: async (phrase: string) => {
     set({ userMotivation: phrase });

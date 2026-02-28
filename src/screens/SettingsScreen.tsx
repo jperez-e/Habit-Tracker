@@ -120,6 +120,19 @@ export default function SettingsScreen() {
     Alert.alert('✅ Listo', 'Cierra y vuelve a abrir la app para ver el onboarding.');
   };
 
+  // Guardamos la preferencia inmediatamente para no perder el cambio al cerrar la app.
+  const handleToggleNotifications = async (value: boolean) => {
+    setNotifications(value);
+    await AsyncStorage.setItem('notifications_enabled', String(value));
+  };
+
+  // La hora seleccionada también se persiste para mantener consistencia entre sesiones.
+  const handleSelectReminderTime = async (time: string) => {
+    setReminderTime(time);
+    setShowTimePicker(false);
+    await AsyncStorage.setItem('reminder_time', time);
+  };
+
 
 
   return (
@@ -241,7 +254,7 @@ export default function SettingsScreen() {
             right={
               <Switch
                 value={notifications}
-                onValueChange={setNotifications}
+                onValueChange={handleToggleNotifications}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor="#FFF"
               />
@@ -262,7 +275,7 @@ export default function SettingsScreen() {
                   key={time}
                   style={[styles.timeBtn, { backgroundColor: colors.border },
                   reminderTime === time && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
-                  onPress={() => { setReminderTime(time); setShowTimePicker(false); }}
+                  onPress={() => { handleSelectReminderTime(time); }}
                 >
                   <Text style={[styles.timeText, { color: reminderTime === time ? colors.primary : colors.textMuted }]}>
                     {time}
@@ -285,7 +298,7 @@ export default function SettingsScreen() {
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
             icon="🔒" label="Política de privacidad" colors={colors}
-            onPress={() => Alert.alert('Privacidad', 'Tus datos se guardan solo en tu dispositivo.')}
+            onPress={() => Alert.alert('Privacidad', 'Tus datos se guardan localmente y, si inicias sesión, también se sincronizan con tu cuenta en la nube (Supabase).')}
           />
         </View>
 
