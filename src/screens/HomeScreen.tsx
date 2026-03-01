@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Dimensions,
   FlatList,
   StatusBar,
   StyleSheet,
@@ -23,16 +24,18 @@ import { useThemeStore } from '../store/themeStore';
 import { getGreeting, getTodayString } from '../utils/dateHelpers';
 import { t } from '../utils/i18n';
 
+const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
   const { habits, toggleHabit, loadHabits } = useHabitStore();
   const today = getTodayString();
-  const confettiRef = useRef<any>(null);
   const prevCompletedRef = useRef(0);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiKey, setConfettiKey] = useState(0);
   const { userName } = useThemeStore();
 
 
@@ -71,7 +74,9 @@ export default function HomeScreen() {
       completedCount === activeHabits.length &&
       prevCompletedRef.current !== activeHabits.length
     ) {
-      setTimeout(() => confettiRef.current?.start(), 300);
+      // Montamos confeti solo al completar todo para evitar artefactos visuales en pantalla.
+      setConfettiKey((k) => k + 1);
+      setShowConfetti(true);
     }
     prevCompletedRef.current = completedCount;
   }, [completedCount, activeHabits.length]);
@@ -95,14 +100,17 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
 
-      <ConfettiCannon
-        ref={confettiRef}
-        count={120}
-        origin={{ x: -10, y: 0 }}
-        autoStart={false}
-        fadeOut
-        colors={['#6C63FF', '#FF6584', '#43C6AC', '#F7971E', '#4CAF50']}
-      />
+      {showConfetti && (
+        <ConfettiCannon
+          key={confettiKey}
+          count={120}
+          origin={{ x: width / 2, y: 0 }}
+          autoStart
+          fadeOut
+          onAnimationEnd={() => setShowConfetti(false)}
+          colors={['#6C63FF', '#FF6584', '#43C6AC', '#F7971E', '#4CAF50']}
+        />
+      )}
 
 
       {/* Header animado */}

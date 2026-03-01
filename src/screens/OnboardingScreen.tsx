@@ -2,12 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-  Dimensions, FlatList, KeyboardAvoidingView,
-  Platform, StatusBar, StyleSheet, Text,
-  TextInput, TouchableOpacity, View,
+  Dimensions, FlatList,
+  StatusBar, StyleSheet, Text,
+  TouchableOpacity, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeStore } from '../store/themeStore';
 
 const { width } = Dimensions.get('window');
 
@@ -31,27 +30,18 @@ const SLIDES = [
     color: '#F7971E', isName: false,
   },
   {
-    id: '4', emoji: '👋',
-    title: '¿Cómo te llamas?',
-    subtitle: 'Así podemos personalizar tu experiencia.',
-    color: '#FF6584', isName: true,
+    id: '4', emoji: '🚀',
+    title: 'Misión de\n7 días',
+    subtitle: 'Empieza con un hábito pequeño y complétalo durante 7 días seguidos. Tu objetivo: constancia, no perfección.',
+    color: '#FF6584', isName: false,
   },
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setUserName, userName: storedName } = useThemeStore();
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [name, setName] = useState(storedName || '');
-
-  // Pre-fill name if it becomes available (e.g. from Supabase sync in layout)
-  React.useEffect(() => {
-    if (storedName && !name) {
-      setName(storedName);
-    }
-  }, [storedName, name]);
 
   const handleNext = () => {
     if (currentIndex < SLIDES.length - 1) {
@@ -61,14 +51,11 @@ export default function OnboardingScreen() {
   };
 
   const handleFinish = async () => {
-    const finalName = name.trim() || 'Campeón';
-    await setUserName(finalName);
     await AsyncStorage.setItem('onboarding_completed', 'true');
     router.replace('/(tabs)/home' as any);
   };
 
   const handleSkip = async () => {
-    await setUserName('Campeón');
     await AsyncStorage.setItem('onboarding_completed', 'true');
     router.replace('/(tabs)/home' as any);
   };
@@ -90,51 +77,38 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
       )}
 
-      {/* KeyboardAvoidingView */}
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <FlatList
-          ref={flatListRef}
-          data={SLIDES}
-          keyExtractor={(item) => item.id}
-          horizontal
-          pagingEnabled
-          scrollEnabled={false}
-          showsHorizontalScrollIndicator={false}
-          style={styles.flatList}
-          renderItem={({ item }) => (
-            <View style={[styles.slide, { width }]}>
-              {/* Círculo con emoji */}
-              <View style={[styles.circle, { backgroundColor: item.color + '22' }]}>
-                <View style={[styles.circleInner, { backgroundColor: item.color + '44' }]}>
-                  <Text style={styles.emoji}>{item.emoji}</Text>
-                </View>
+      <FlatList
+        ref={flatListRef}
+        data={SLIDES}
+        keyExtractor={(item) => item.id}
+        horizontal
+        pagingEnabled
+        scrollEnabled={false}
+        showsHorizontalScrollIndicator={false}
+        style={styles.flatList}
+        renderItem={({ item }) => (
+          <View style={[styles.slide, { width }]}>
+            {/* Círculo con emoji */}
+            <View style={[styles.circle, { backgroundColor: item.color + '22' }]}>
+              <View style={[styles.circleInner, { backgroundColor: item.color + '44' }]}>
+                <Text style={styles.emoji}>{item.emoji}</Text>
               </View>
-
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.subtitle}>{item.subtitle}</Text>
-
-              {item.isName && (
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.nameInput}
-                    placeholder="Tu nombre..."
-                    placeholderTextColor="#555"
-                    value={name}
-                    onChangeText={setName}
-                    maxLength={20}
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={handleFinish}
-                  />
-                </View>
-              )}
             </View>
-          )}
-        />
-      </KeyboardAvoidingView>
+
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.subtitle}>{item.subtitle}</Text>
+
+            {item.id === '4' && (
+              <View style={styles.missionCard}>
+                <Text style={styles.missionTitle}>Plan de arranque</Text>
+                <Text style={styles.missionItem}>1. Elige un hábito de 2 minutos.</Text>
+                <Text style={styles.missionItem}>2. Hazlo siempre a la misma hora.</Text>
+                <Text style={styles.missionItem}>3. No rompas la cadena de 7 días.</Text>
+              </View>
+            )}
+          </View>
+        )}
+      />
 
       {/* Dots indicadores */}
       <View style={styles.dotsRow}>
@@ -159,9 +133,7 @@ export default function OnboardingScreen() {
             style={[styles.btn, { backgroundColor: currentSlide.color }]}
             onPress={handleFinish}
           >
-            <Text style={styles.btnText}>
-              {name.trim() ? `¡Empecemos, ${name.trim()}! 🚀` : '¡Comenzar ahora! 🚀'}
-            </Text>
+            <Text style={styles.btnText}>¡Comenzar ahora! 🚀</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -178,7 +150,6 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#12121E' },
-  keyboardView: { flex: 1 },
   flatList: { flex: 1 },
   skipBtn: { position: 'absolute', right: 24, zIndex: 10 },
   skipText: { color: '#888', fontSize: 15 },
@@ -205,12 +176,26 @@ const styles = StyleSheet.create({
     fontSize: 15, color: '#888', textAlign: 'center',
     lineHeight: 22, paddingHorizontal: 10,
   },
-  inputWrapper: { marginTop: 24, width: '100%' },
-  nameInput: {
-    backgroundColor: '#1E1E2E', borderRadius: 16,
-    paddingHorizontal: 20, paddingVertical: 16,
-    fontSize: 18, color: '#FFF', textAlign: 'center',
-    borderWidth: 1, borderColor: '#6C63FF',
+  missionCard: {
+    marginTop: 24,
+    width: '100%',
+    backgroundColor: '#1E1E2E',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: '#FF6584',
+  },
+  missionTitle: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  missionItem: {
+    color: '#B8B8C7',
+    fontSize: 14,
+    lineHeight: 22,
   },
   dotsRow: {
     flexDirection: 'row', justifyContent: 'center',
