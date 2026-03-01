@@ -13,6 +13,7 @@ import Animated, {
 import { useColors } from '../hooks/useColors';
 import { Habit } from '../store/habitStore';
 import { getTodayString } from '../utils/dateHelpers';
+import { getFrequencyLabel, isHabitDueOnDate } from '../utils/habitFrequency';
 import { playCompleteSound, playUncompleteSound } from '../utils/sounds';
 
 type Props = {
@@ -25,6 +26,7 @@ export default function HabitCard({ habit, onToggle }: Props) {
   const colors = useColors();
   const today = getTodayString();
   const isCompleted = habit.completedDates.includes(today);
+  const isDueToday = isHabitDueOnDate(habit, today);
 
   const scale = useSharedValue(1);
   const checkScale = useSharedValue(isCompleted ? 1 : 0);
@@ -40,6 +42,11 @@ export default function HabitCard({ habit, onToggle }: Props) {
   }));
 
   const handleToggle = () => {
+    if (!isDueToday && !isCompleted) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return;
+    }
+
     scale.value = withSequence(
       withSpring(0.96, { damping: 10, stiffness: 300 }),
       withSpring(1, { damping: 8, stiffness: 200 })
@@ -88,8 +95,13 @@ export default function HabitCard({ habit, onToggle }: Props) {
             {habit.name}
           </Text>
           <Text style={[styles.streak, { color: colors.textMuted }]}>
-            {habit.archived ? '📦 Archivado · ' : ''}🔥 {habit.streak} días seguidos
+            {habit.archived ? '📦 Archivado · ' : ''}🔥 Racha: {habit.streak} · {getFrequencyLabel(habit)}
           </Text>
+          {!isDueToday && !isCompleted && (
+            <Text style={[styles.notDue, { color: colors.textMuted }]}>
+              No toca hoy
+            </Text>
+          )}
         </View>
 
         {/* Botón detalle */}
@@ -107,7 +119,7 @@ export default function HabitCard({ habit, onToggle }: Props) {
         <Animated.View
           style={[
             styles.check,
-            { borderColor: isCompleted ? habit.color : colors.border },
+            { borderColor: isCompleted ? habit.color : isDueToday ? colors.border : colors.textMuted },
             isCompleted && { backgroundColor: habit.color },
             checkStyle,
           ]}
@@ -145,6 +157,7 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   name: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
   streak: { fontSize: 12 },
+  notDue: { fontSize: 11, marginTop: 2 },
   detailBtn: { paddingHorizontal: 8 },
   detailBtnText: { fontSize: 24 },
   check: {

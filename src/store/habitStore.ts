@@ -3,6 +3,8 @@ import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { cancelHabitReminder, scheduleHabitReminder } from '../utils/notifications';
+import { calculateHabitStreak, HabitFrequencyType } from '../utils/habitFrequency';
+import { getTodayString } from '../utils/dateHelpers';
 
 export type Habit = {
   id: string;
@@ -12,6 +14,10 @@ export type Habit = {
   notes: string;
   reminderEnabled: boolean;
   reminderTime: string;
+  frequencyType: HabitFrequencyType;
+  specificDays: number[];
+  timesPerWeek: number;
+  restDates: string[];
   completedDates: string[];
   streak: number;
   archived: boolean;
@@ -28,34 +34,7 @@ type HabitStore = {
   clearAllHabits: () => Promise<void>;
   resetStore: () => Promise<void>;
   loadHabits: () => Promise<void>;
-};
-
-// Calcula racha consecutiva real
-const calculateStreak = (completedDates: string[]): number => {
-  if (completedDates.length === 0) return 0;
-
-  const sorted = [...completedDates].sort((a, b) => b.localeCompare(a));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let streak = 0;
-  let current = new Date(today);
-
-  for (let i = 0; i < 365; i++) {
-    const dateStr = current.toISOString().split('T')[0];
-    if (sorted.includes(dateStr)) {
-      streak++;
-      current.setDate(current.getDate() - 1);
-    } else {
-      // Permite un día de gracia (hoy puede no estar completado aún)
-      if (i === 0) {
-        current.setDate(current.getDate() - 1);
-        continue;
-      }
-      break;
-    }
-  }
-  return streak;
+  importHabitsFromBackup: (habits: Habit[]) => Promise<void>;
 };
 
 export const useHabitStore = create<HabitStore>((set, get) => ({
@@ -72,21 +51,35 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         console.log('Syncing new habit to cloud:', newHabit.name);
-        const { error: syncError } = await supabase.from('habits').insert([
-          {
-            id: newHabit.id,
-            user_id: user.id,
-            name: newHabit.name,
-            icon: newHabit.icon,
-            color: newHabit.color,
-            notes: newHabit.notes,
-            archived: newHabit.archived,
-            reminder_enabled: newHabit.reminderEnabled,
-            reminder_time: newHabit.reminderTime,
-            completed_dates: newHabit.completedDates,
-            created_at: newHabit.createdAt,
-          },
-        ]);
+        const basePayload = {
+          id: newHabit.id,
+          user_id: user.id,
+          name: newHabit.name,
+          icon: newHabit.icon,
+          color: newHabit.color,
+          notes: newHabit.notes,
+          archived: newHabit.archived,
+          reminder_enabled: newHabit.reminderEnabled,
+          reminder_time: newHabit.reminderTime,
+          completed_dates: newHabit.completedDates,
+          created_at: newHabit.createdAt,
+        };
+
+        const fullPayload = {
+          ...basePayload,
+          frequency_type: newHabit.frequencyType,
+          specific_days: newHabit.specificDays,
+          times_per_week: newHabit.timesPerWeek,
+          rest_dates: newHabit.restDates,
+        };
+
+        let { error: syncError } = await supabase.from('habits').insert([fullPayload]);
+
+        // Compatibilidad con esquemas antiguos que aún no tienen columnas de frecuencia.
+        if (syncError) {
+          const fallback = await supabase.from('habits').insert([basePayload]);
+          syncError = fallback.error ?? null;
+        }
         if (syncError) {
           console.error('Error syncing habit to Supabase:', syncError.message, syncError.details);
           Alert.alert('Error de Sincronización', 'No pudimos guardar tu hábito en la nube: ' + syncError.message);
@@ -101,12 +94,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
   updateHabit: async (id, updates) => {
     try {
-      let mergedHabit: Habit | null = null;
-      const updated = get().habits.map(h => {
-        if (h.id !== id) return h;
-        mergedHabit = { ...h, ...updates };
-        return mergedHabit;
-      });
+      const updated = get().habits.map(h => (h.id === id ? { ...h, ...updates } : h));
       set({ habits: updated });
       await AsyncStorage.setItem('habits', JSON.stringify(updated));
 
@@ -121,13 +109,35 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         if (updates.archived !== undefined) dbUpdates.archived = updates.archived;
         if (updates.reminderEnabled !== undefined) dbUpdates.reminder_enabled = updates.reminderEnabled;
         if (updates.reminderTime !== undefined) dbUpdates.reminder_time = updates.reminderTime;
+        if (updates.frequencyType !== undefined) dbUpdates.frequency_type = updates.frequencyType;
+        if (updates.specificDays !== undefined) dbUpdates.specific_days = updates.specificDays;
+        if (updates.timesPerWeek !== undefined) dbUpdates.times_per_week = updates.timesPerWeek;
+        if (updates.restDates !== undefined) dbUpdates.rest_dates = updates.restDates;
         if (updates.completedDates !== undefined) dbUpdates.completed_dates = updates.completedDates;
 
         // Doble filtro por seguridad: evita afectar hábitos de otro usuario si cambia RLS.
-        await supabase.from('habits').update(dbUpdates).eq('id', id).eq('user_id', user.id);
+        let { error: updateError } = await supabase.from('habits').update(dbUpdates).eq('id', id).eq('user_id', user.id);
+
+        if (updateError) {
+          const {
+            frequency_type: _frequencyType,
+            specific_days: _specificDays,
+            times_per_week: _timesPerWeek,
+            rest_dates: _restDates,
+            ...baseUpdates
+          } = dbUpdates;
+
+          const fallback = await supabase.from('habits').update(baseUpdates).eq('id', id).eq('user_id', user.id);
+          updateError = fallback.error ?? null;
+        }
+
+        if (updateError) {
+          console.error('Error syncing habit update:', updateError.message);
+        }
       }
 
       // Mantiene sincronizados los recordatorios al editar datos clave del hábito.
+      const mergedHabit = updated.find((h) => h.id === id);
       if (mergedHabit) {
         if (!mergedHabit.reminderEnabled || mergedHabit.archived) {
           await cancelHabitReminder(mergedHabit.id);
@@ -136,7 +146,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
             mergedHabit.id,
             mergedHabit.name,
             mergedHabit.icon,
-            mergedHabit.reminderTime
+            mergedHabit.reminderTime,
+            mergedHabit
           );
         }
       }
@@ -158,7 +169,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         return {
           ...h,
           completedDates: newDates,
-          streak: calculateStreak(newDates),
+          streak: calculateHabitStreak({ ...h, completedDates: newDates }, getTodayString()),
         };
       });
       set({ habits: updated });
@@ -197,11 +208,9 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
   archiveHabit: async (id) => {
     try {
       let isArchived = false;
-      let habitForReminder: Habit | null = null;
       const updated = get().habits.map(h => {
         if (h.id === id) {
           isArchived = !h.archived;
-          habitForReminder = { ...h, archived: isArchived };
           return { ...h, archived: isArchived };
         }
         return h;
@@ -219,13 +228,17 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       // Si se archiva, quitamos recordatorio. Si se reactiva y tenía recordatorio, lo restauramos.
       if (isArchived) {
         await cancelHabitReminder(id);
-      } else if (habitForReminder?.reminderEnabled) {
+      } else {
+        const habitForReminder = updated.find((h) => h.id === id);
+        if (habitForReminder?.reminderEnabled) {
         await scheduleHabitReminder(
           habitForReminder.id,
           habitForReminder.name,
           habitForReminder.icon,
-          habitForReminder.reminderTime
+          habitForReminder.reminderTime,
+          habitForReminder
         );
+        }
       }
     } catch (error) {
       console.error('Error archiving habit in storage:', error);
@@ -294,8 +307,21 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
             notes: ch.notes,
             reminderEnabled: ch.reminder_enabled,
             reminderTime: ch.reminder_time,
+            frequencyType: ch.frequency_type ?? 'daily',
+            specificDays: ch.specific_days ?? [],
+            timesPerWeek: ch.times_per_week ?? 3,
+            restDates: ch.rest_dates ?? [],
             completedDates: ch.completed_dates,
-            streak: calculateStreak(ch.completed_dates),
+            streak: calculateHabitStreak(
+              {
+                frequencyType: ch.frequency_type ?? 'daily',
+                specificDays: ch.specific_days ?? [],
+                timesPerWeek: ch.times_per_week ?? 3,
+                restDates: ch.rest_dates ?? [],
+                completedDates: ch.completed_dates ?? [],
+              },
+              getTodayString()
+            ),
             archived: ch.archived,
             createdAt: ch.created_at,
           }));
@@ -314,7 +340,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
           // Upload local habits that are NOT in cloud
           const toUpload = localHabits.filter(lh => !mappedCloud.find(ch => ch.id === lh.id));
           if (toUpload.length > 0) {
-            await supabase.from('habits').insert(toUpload.map(lh => ({
+            const fullRows = toUpload.map(lh => ({
               id: lh.id,
               user_id: user.id,
               name: lh.name,
@@ -324,9 +350,36 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
               archived: lh.archived,
               reminder_enabled: lh.reminderEnabled,
               reminder_time: lh.reminderTime,
+              frequency_type: lh.frequencyType,
+              specific_days: lh.specificDays,
+              times_per_week: lh.timesPerWeek,
+              rest_dates: lh.restDates,
               completed_dates: lh.completedDates,
               created_at: lh.createdAt,
-            })));
+            }));
+
+            let { error: bulkError } = await supabase.from('habits').insert(fullRows);
+            if (bulkError) {
+              const baseRows = toUpload.map(lh => ({
+                id: lh.id,
+                user_id: user.id,
+                name: lh.name,
+                icon: lh.icon,
+                color: lh.color,
+                notes: lh.notes,
+                archived: lh.archived,
+                reminder_enabled: lh.reminderEnabled,
+                reminder_time: lh.reminderTime,
+                completed_dates: lh.completedDates,
+                created_at: lh.createdAt,
+              }));
+              const fallback = await supabase.from('habits').insert(baseRows);
+              bulkError = fallback.error ?? null;
+            }
+
+            if (bulkError) {
+              console.error('Error syncing local habits to cloud:', bulkError.message);
+            }
           }
 
           localHabits = merged;
@@ -339,7 +392,20 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         notes: h.notes ?? '',
         reminderEnabled: h.reminderEnabled ?? false,
         reminderTime: h.reminderTime ?? '08:00',
-        streak: calculateStreak(h.completedDates),
+        frequencyType: h.frequencyType ?? 'daily',
+        specificDays: h.specificDays ?? [],
+        timesPerWeek: h.timesPerWeek ?? 3,
+        restDates: h.restDates ?? [],
+        streak: calculateHabitStreak(
+          {
+            frequencyType: h.frequencyType ?? 'daily',
+            specificDays: h.specificDays ?? [],
+            timesPerWeek: h.timesPerWeek ?? 3,
+            restDates: h.restDates ?? [],
+            completedDates: h.completedDates ?? [],
+          },
+          getTodayString()
+        ),
       }));
 
       set({ habits: migrated });
@@ -349,7 +415,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       const reminderJobs = migrated
         .filter((h) => h.reminderEnabled && !h.archived)
         .map((h) =>
-          scheduleHabitReminder(h.id, h.name, h.icon, h.reminderTime).catch((e) => {
+          scheduleHabitReminder(h.id, h.name, h.icon, h.reminderTime, h).catch((e) => {
             console.warn('No se pudo reprogramar recordatorio de hábito:', h.id, e);
           })
         );
@@ -357,6 +423,63 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       await Promise.all(reminderJobs);
     } catch (error) {
       console.error('Error loading habits from storage:', error);
+    }
+  },
+
+  importHabitsFromBackup: async (backupHabits) => {
+    try {
+      const migrated = backupHabits.map((h: Habit) => ({
+        ...h,
+        archived: h.archived ?? false,
+        notes: h.notes ?? '',
+        reminderEnabled: h.reminderEnabled ?? false,
+        reminderTime: h.reminderTime ?? '08:00',
+        frequencyType: h.frequencyType ?? 'daily',
+        specificDays: h.specificDays ?? [],
+        timesPerWeek: h.timesPerWeek ?? 3,
+        restDates: h.restDates ?? [],
+        streak: calculateHabitStreak(
+          {
+            frequencyType: h.frequencyType ?? 'daily',
+            specificDays: h.specificDays ?? [],
+            timesPerWeek: h.timesPerWeek ?? 3,
+            restDates: h.restDates ?? [],
+            completedDates: h.completedDates ?? [],
+          },
+          getTodayString()
+        ),
+      }));
+
+      set({ habits: migrated });
+      await AsyncStorage.setItem('habits', JSON.stringify(migrated));
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const rows = migrated.map((h) => ({
+          id: h.id,
+          user_id: user.id,
+          name: h.name,
+          icon: h.icon,
+          color: h.color,
+          notes: h.notes,
+          archived: h.archived,
+          reminder_enabled: h.reminderEnabled,
+          reminder_time: h.reminderTime,
+          completed_dates: h.completedDates,
+          created_at: h.createdAt,
+        }));
+        await supabase.from('habits').upsert(rows);
+      }
+
+      const reminderJobs = migrated
+        .filter((h) => h.reminderEnabled && !h.archived)
+        .map((h) =>
+          scheduleHabitReminder(h.id, h.name, h.icon, h.reminderTime, h).catch(() => undefined)
+        );
+      await Promise.all(reminderJobs);
+    } catch (error) {
+      console.error('Error importing backup habits:', error);
+      throw error;
     }
   },
 }));

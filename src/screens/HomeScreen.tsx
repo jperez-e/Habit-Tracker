@@ -22,6 +22,7 @@ import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { useThemeStore } from '../store/themeStore';
 import { getGreeting, getTodayString } from '../utils/dateHelpers';
+import { isHabitDueOnDate } from '../utils/habitFrequency';
 import { t } from '../utils/i18n';
 
 const { width } = Dimensions.get('window');
@@ -57,12 +58,14 @@ export default function HomeScreen() {
     .filter(h => h.archived)
     .filter(h => h.name.toLowerCase().includes(search.toLowerCase()));
 
-  const completedCount = activeHabits.filter(h =>
+  const dueTodayHabits = activeHabits.filter((h) => isHabitDueOnDate(h, today));
+
+  const completedCount = dueTodayHabits.filter(h =>
     h.completedDates.includes(today)
   ).length;
 
-  const progress = activeHabits.length > 0
-    ? completedCount / activeHabits.length
+  const progress = dueTodayHabits.length > 0
+    ? completedCount / dueTodayHabits.length
     : 0;
 
   const progressPercent = Math.round(progress * 100);
@@ -71,15 +74,16 @@ export default function HomeScreen() {
   useEffect(() => {
     if (
       activeHabits.length > 0 &&
-      completedCount === activeHabits.length &&
-      prevCompletedRef.current !== activeHabits.length
+      dueTodayHabits.length > 0 &&
+      completedCount === dueTodayHabits.length &&
+      prevCompletedRef.current !== dueTodayHabits.length
     ) {
       // Montamos confeti solo al completar todo para evitar artefactos visuales en pantalla.
       setConfettiKey((k) => k + 1);
       setShowConfetti(true);
     }
     prevCompletedRef.current = completedCount;
-  }, [completedCount, activeHabits.length]);
+  }, [completedCount, activeHabits.length, dueTodayHabits.length]);
 
   useEffect(() => {
     progressWidth.value = withSpring(progress, { damping: 14, stiffness: 80 });
@@ -94,7 +98,7 @@ export default function HomeScreen() {
     width: `${progressWidth.value * 100}%`,
   }));
 
-  const allDone = completedCount === activeHabits.length && activeHabits.length > 0;
+  const allDone = completedCount === dueTodayHabits.length && dueTodayHabits.length > 0;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -120,8 +124,13 @@ export default function HomeScreen() {
             {`${getGreeting()}${userName ? `, ${userName}` : ''} 👋`}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            {t('check_progress')}
+          {t('check_progress')}
           </Text>
+          {dueTodayHabits.length < activeHabits.length && (
+            <Text style={[styles.subtitleSmall, { color: colors.textMuted }]}>
+              Hoy tocan {dueTodayHabits.length} de {activeHabits.length} hábitos activos
+            </Text>
+          )}
         </View>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: colors.primary }]}
@@ -156,6 +165,7 @@ export default function HomeScreen() {
         </Text>
         <Text style={[styles.progressCount, { color: colors.text }]}>
           {t('habits_completed', { completed: completedCount, total: activeHabits.length })}
+          {dueTodayHabits.length !== activeHabits.length ? ` (${dueTodayHabits.length} programados hoy)` : ''}
           {allDone ? ' 🎉' : ''}
         </Text>
         <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
@@ -232,6 +242,7 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 24, fontWeight: 'bold' },
   subtitle: { fontSize: 14, marginTop: 4 },
+  subtitleSmall: { fontSize: 12, marginTop: 2 },
   addButton: {
     width: 44, height: 44, borderRadius: 22,
     justifyContent: 'center', alignItems: 'center',

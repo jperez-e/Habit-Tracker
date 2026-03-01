@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LogBox } from 'react-native';
+import { HabitFrequencyData } from './habitFrequency';
 
 // Ignora la advertencia sobre notificaciones remotas en Expo Go,
 // ya que esta app usa únicamente notificaciones locales (que sí funcionan).
@@ -19,6 +20,8 @@ Notifications.setNotificationHandler({
 
 const HABIT_REMINDER_IDS_KEY = 'habit_reminder_ids';
 const GLOBAL_REMINDER_ID_KEY = 'global_reminder_id';
+export const HABIT_NOTIFICATION_CATEGORY_ID = 'habit_actions';
+export const HABIT_MARK_DONE_ACTION_ID = 'mark_done';
 
 const parseTime = (timeStr: string): { hour: number; minute: number } => {
   const [h, m] = timeStr.split(':').map(Number);
@@ -43,6 +46,16 @@ const setHabitReminderMap = async (map: Record<string, string>) => {
 export const requestPermissions = async (): Promise<boolean> => {
   const { status } = await Notifications.requestPermissionsAsync();
   return status === 'granted';
+};
+
+export const configureNotificationActions = async () => {
+  await Notifications.setNotificationCategoryAsync(HABIT_NOTIFICATION_CATEGORY_ID, [
+    {
+      identifier: HABIT_MARK_DONE_ACTION_ID,
+      buttonTitle: 'Marcar completado',
+      options: { opensAppToForeground: false },
+    },
+  ]);
 };
 
 // Recordatorio global (para todos los hábitos)
@@ -76,29 +89,54 @@ export const scheduleHabitReminder = async (
   habitId: string,
   habitName: string,
   habitIcon: string,
-  timeStr: string // "HH:MM"
+  timeStr: string, // "HH:MM"
+  frequency?: HabitFrequencyData
 ) => {
   // Cancela el anterior de este hábito
   await cancelHabitReminder(habitId);
 
   const { hour, minute } = parseTime(timeStr);
 
-  const notificationId = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: `${habitIcon} Recordatorio`,
-      body: `¡No olvides: ${habitName}!`,
-      sound: true,
-      data: { habitId },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
-  });
-
   const map = await getHabitReminderMap();
-  map[habitId] = notificationId;
+  const ids: string[] = [];
+
+  const content = {
+    title: `${habitIcon} Recordatorio`,
+    body: `¡No olvides: ${habitName}!`,
+    sound: true,
+    categoryIdentifier: HABIT_NOTIFICATION_CATEGORY_ID,
+    data: { habitId },
+  };
+
+  const frequencyType = frequency?.frequencyType ?? 'daily';
+
+  if (frequencyType === 'specific_days' && (frequency?.specificDays?.length ?? 0) > 0) {
+    for (const day of frequency!.specificDays!) {
+      const weekday = day === 0 ? 1 : day + 1; // Expo: 1=Sunday
+      const id = await Notifications.scheduleNotificationAsync({
+        content,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          weekday,
+          hour,
+          minute,
+        },
+      });
+      ids.push(id);
+    }
+  } else {
+    const id = await Notifications.scheduleNotificationAsync({
+      content,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+      },
+    });
+    ids.push(id);
+  }
+
+  map[habitId] = ids.join(',');
   await setHabitReminderMap(map);
 };
 
@@ -106,7 +144,9 @@ export const cancelHabitReminder = async (habitId: string) => {
   const map = await getHabitReminderMap();
   const id = map[habitId];
   if (!id) return;
-  await Notifications.cancelScheduledNotificationAsync(id);
+  for (const singleId of id.split(',')) {
+    await Notifications.cancelScheduledNotificationAsync(singleId);
+  }
   delete map[habitId];
   await setHabitReminderMap(map);
 };

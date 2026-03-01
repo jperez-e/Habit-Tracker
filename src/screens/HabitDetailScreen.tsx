@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { Habit, useHabitStore } from '../store/habitStore';
 import { getTodayString } from '../utils/dateHelpers';
+import { getFrequencyLabel } from '../utils/habitFrequency';
 
 const getLast30Days = (): string[] => {
   const days = [];
@@ -31,7 +32,7 @@ export default function HabitDetailScreen() {
   const router = useRouter();
   const colors = useColors();
   const { habitId } = useLocalSearchParams();
-  const { habits, toggleHabit, deleteHabit, archiveHabit } = useHabitStore();
+  const { habits, toggleHabit, deleteHabit, archiveHabit, updateHabit } = useHabitStore();
   const [retroModalVisible, setRetroModalVisible] = useState(false);
   const [retroDate, setRetroDate] = useState(getTodayString());
   const habit: Habit | undefined = habits.find((h) => h.id === habitId);
@@ -45,6 +46,7 @@ export default function HabitDetailScreen() {
   const today = getTodayString();
   const last30 = getLast30Days();
   const isCompletedToday = habit.completedDates.includes(today);
+  const isRestToday = (habit.restDates ?? []).includes(today);
   const completedThisMonth = last30.filter(d => habit.completedDates.includes(d)).length;
   const completionRate = Math.round((completedThisMonth / 30) * 100);
 
@@ -191,6 +193,9 @@ export default function HabitDetailScreen() {
               day: 'numeric', month: 'long', year: 'numeric'
             })}
           </Text>
+          <Text style={[styles.since, { color: colors.textMuted, marginBottom: 8 }]}>
+            Frecuencia: {getFrequencyLabel(habit)}
+          </Text>
 
           <TouchableOpacity
             style={[styles.toggleBtn, isCompletedToday && styles.toggleBtnDone,
@@ -220,6 +225,20 @@ export default function HabitDetailScreen() {
           >
             <Text style={[styles.retroBtnText, { color: colors.primary }]}>
               📅 Registrar logro antiguo
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.retroBtn, { borderColor: colors.border }]}
+            onPress={() => {
+              const nextRestDates = isRestToday
+                ? (habit.restDates ?? []).filter((d) => d !== today)
+                : Array.from(new Set([...(habit.restDates ?? []), today]));
+              updateHabit(habit.id, { restDates: nextRestDates });
+            }}
+          >
+            <Text style={[styles.retroBtnText, { color: colors.textMuted }]}>
+              {isRestToday ? '🟢 Quitar descanso de hoy' : '🛌 Marcar descanso hoy'}
             </Text>
           </TouchableOpacity>
         </View>

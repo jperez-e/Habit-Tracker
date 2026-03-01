@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
@@ -51,13 +52,13 @@ const HOURS = ['06:00', '07:00', '08:00', '09:00', '10:00', '18:00', '20:00', '2
 
 export default function SettingsScreen() {
   const colors = useColors();
-  const { habits, clearAllHabits, resetStore } = useHabitStore();
-  const { themeMode, setThemeMode } = useThemeStore();
+  const { habits, clearAllHabits, resetStore, importHabitsFromBackup } = useHabitStore();
+  const { themeMode, setThemeMode, loadTheme } = useThemeStore();
   const [notifications, setNotifications] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
-  const { userName, setUserName, userMotivation, appStartDate } = useThemeStore();
+  const { userName, setUserName, userMotivation, appStartDate, setUserMotivation } = useThemeStore();
   const totalHabits = habits.length;
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
   const [nameModalVisible, setNameModalVisible] = useState(false);
@@ -191,6 +192,62 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('Error exporting backup:', error);
       Alert.alert('Error', 'No se pudo exportar el backup.');
+    }
+  };
+
+  const handleImportBackup = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const picked = result.assets?.[0];
+      if (!picked?.uri) {
+        Alert.alert('Error', 'No se pudo leer el archivo seleccionado.');
+        return;
+      }
+
+      const raw = await FileSystem.readAsStringAsync(picked.uri, { encoding: FileSystem.EncodingType.UTF8 });
+      const parsed = JSON.parse(raw);
+
+      if (!parsed || !Array.isArray(parsed.habits)) {
+        Alert.alert('Error', 'El archivo no tiene un formato de backup válido.');
+        return;
+      }
+
+      await importHabitsFromBackup(parsed.habits);
+
+      if (parsed.user?.name) {
+        await setUserName(String(parsed.user.name));
+      }
+      if (typeof parsed.user?.motivation === 'string') {
+        await setUserMotivation(parsed.user.motivation);
+      }
+      if (parsed.user?.themeMode) {
+        await setThemeMode(parsed.user.themeMode);
+      }
+      if (parsed.user?.appStartDate) {
+        await AsyncStorage.setItem('app_start_date', String(parsed.user.appStartDate));
+      }
+
+      if (typeof parsed.settings?.notificationsEnabled === 'boolean') {
+        await AsyncStorage.setItem('notifications_enabled', String(parsed.settings.notificationsEnabled));
+        setNotifications(parsed.settings.notificationsEnabled);
+      }
+      if (typeof parsed.settings?.reminderTime === 'string') {
+        await AsyncStorage.setItem('reminder_time', parsed.settings.reminderTime);
+        setReminderTime(parsed.settings.reminderTime);
+      }
+
+      await loadTheme();
+
+      Alert.alert('Backup importado', 'Tus datos fueron restaurados correctamente.');
+    } catch (error) {
+      console.error('Error importing backup:', error);
+      Alert.alert('Error', 'No se pudo importar el backup.');
     }
   };
 
@@ -376,6 +433,12 @@ export default function SettingsScreen() {
             icon="💾" label="Exportar backup"
             subtitle="Genera un archivo JSON con tus datos"
             colors={colors} onPress={handleExportBackup}
+          />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <SettingRow
+            icon="📥" label="Importar backup"
+            subtitle="Restaura hábitos y preferencias desde JSON"
+            colors={colors} onPress={handleImportBackup}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow

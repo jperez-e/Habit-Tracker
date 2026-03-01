@@ -1,6 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { cancelHabitReminder, requestPermissions, scheduleHabitReminder } from '../utils/notifications';
+import { HabitFrequencyType } from '../utils/habitFrequency';
+import { getTodayString } from '../utils/dateHelpers';
 
 import {
   Alert, ScrollView, StatusBar, StyleSheet, Switch,
@@ -15,6 +17,7 @@ import { habitSchema } from '../utils/habitValidation';
 // ✅ ⭐ agregado al inicio
 const ICONS = ['⭐', '💪', '📚', '🏃', '🧘', '💧', '🥗', '😴', '🎯', '✍️', '🎨', '🎵', '🌿'];
 const COLORS = ['#6C63FF', '#FF6584', '#43C6AC', '#F7971E', '#12c2e9', '#f64f59', '#c471ed', '#4CAF50'];
+const WEEK_DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export default function EditHabitScreen() {
   const router = useRouter();
@@ -24,6 +27,10 @@ export default function EditHabitScreen() {
   const habit = habits.find(h => h.id === habitId);
   const [reminderEnabled, setReminderEnabled] = useState(habit?.reminderEnabled ?? false);
   const [reminderTime, setReminderTime] = useState(habit?.reminderTime ?? '08:00');
+  const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>(habit?.frequencyType ?? 'daily');
+  const [specificDays, setSpecificDays] = useState<number[]>(habit?.specificDays ?? []);
+  const [timesPerWeek, setTimesPerWeek] = useState(habit?.timesPerWeek ?? 3);
+  const [restToday, setRestToday] = useState((habit?.restDates ?? []).includes(getTodayString()));
   const REMINDER_TIMES = ['06:00', '07:00', '08:00', '09:00', '12:00', '18:00', '20:00', '22:00'];
   const [name, setName] = useState(habit?.name ?? '');
   const [selectedIcon, setSelectedIcon] = useState(habit?.icon ?? '⭐');
@@ -38,6 +45,11 @@ export default function EditHabitScreen() {
 
   const handleSave = async () => {
     try {
+      if (frequencyType === 'specific_days' && specificDays.length === 0) {
+        Alert.alert('Frecuencia incompleta', 'Selecciona al menos un día de la semana.');
+        return;
+      }
+
       const validatedData = habitSchema.parse({
         name,
         icon: selectedIcon || '⭐',
@@ -52,6 +64,12 @@ export default function EditHabitScreen() {
         notes: validatedData.notes || '',
         reminderEnabled,
         reminderTime,
+        frequencyType,
+        specificDays,
+        timesPerWeek,
+        restDates: restToday
+          ? Array.from(new Set([...(habit.restDates ?? []), getTodayString()]))
+          : (habit.restDates ?? []).filter((d) => d !== getTodayString()),
       });
 
       if (reminderEnabled) {
@@ -60,7 +78,21 @@ export default function EditHabitScreen() {
           Alert.alert('Permiso requerido', 'Activa las notificaciones para usar recordatorios.');
           return;
         }
-        await scheduleHabitReminder(habit.id, validatedData.name, validatedData.icon, reminderTime);
+        await scheduleHabitReminder(
+          habit.id,
+          validatedData.name,
+          validatedData.icon,
+          reminderTime,
+          {
+            frequencyType,
+            specificDays,
+            timesPerWeek,
+            restDates: restToday
+              ? Array.from(new Set([...(habit.restDates ?? []), getTodayString()]))
+              : (habit.restDates ?? []).filter((d) => d !== getTodayString()),
+            completedDates: habit.completedDates,
+          }
+        );
       } else {
         await cancelHabitReminder(habit.id);
       }
@@ -141,6 +173,85 @@ export default function EditHabitScreen() {
         <Text style={[styles.charCount, { color: colors.textMuted }]}>
           {notes.length}/300
         </Text>
+
+        <Text style={[styles.label, { color: colors.textMuted }]}>Frecuencia</Text>
+        <View style={styles.timesGrid}>
+          {[
+            { key: 'daily', label: 'Diario' },
+            { key: 'specific_days', label: 'Días fijos' },
+            { key: 'times_per_week', label: 'X / semana' },
+          ].map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[
+                styles.timeBtn,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                frequencyType === opt.key && { backgroundColor: colors.primary, borderColor: colors.primary },
+              ]}
+              onPress={() => setFrequencyType(opt.key as HabitFrequencyType)}
+            >
+              <Text style={[styles.timeBtnText, { color: frequencyType === opt.key ? '#FFF' : colors.text }]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {frequencyType === 'specific_days' && (
+          <View style={styles.timesGrid}>
+            {WEEK_DAYS.map((day, idx) => {
+              const selected = specificDays.includes(idx);
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.timeBtn,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                  onPress={() =>
+                    setSpecificDays((prev) =>
+                      prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx]
+                    )
+                  }
+                >
+                  <Text style={[styles.timeBtnText, { color: selected ? '#FFF' : colors.text }]}>{day}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {frequencyType === 'times_per_week' && (
+          <View style={styles.timesGrid}>
+            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+              <TouchableOpacity
+                key={n}
+                style={[
+                  styles.timeBtn,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  timesPerWeek === n && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+                onPress={() => setTimesPerWeek(n)}
+              >
+                <Text style={[styles.timeBtnText, { color: timesPerWeek === n ? '#FFF' : colors.text }]}>{n}x</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <View style={[styles.reminderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.reminderLeft}>
+            <Text style={styles.reminderIcon}>🛌</Text>
+            <Text style={[styles.reminderLabel, { color: colors.text }]}>Descanso hoy</Text>
+          </View>
+          <Switch
+            value={restToday}
+            onValueChange={setRestToday}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#FFF"
+          />
+        </View>
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Recordatorio</Text>
         <View style={[styles.reminderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>

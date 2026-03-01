@@ -13,9 +13,12 @@ import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { habitSchema } from '../utils/habitValidation';
 import { requestPermissions, scheduleHabitReminder } from '../utils/notifications';
+import { HabitFrequencyType } from '../utils/habitFrequency';
+import { getTodayString } from '../utils/dateHelpers';
 
 const ICONS = ['⭐', '💪', '📚', '🏃', '🧘', '💧', '🥗', '😴', '🎯', '✍️', '🎨', '🎵', '🌿'];
 const COLORS = ['#6C63FF', '#FF6584', '#43C6AC', '#F7971E', '#12c2e9', '#f64f59', '#c471ed', '#4CAF50'];
+const WEEK_DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export default function AddHabitScreen() {
   const router = useRouter();
@@ -27,11 +30,20 @@ export default function AddHabitScreen() {
   const [notes, setNotes] = useState('');
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
+  const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>('daily');
+  const [specificDays, setSpecificDays] = useState<number[]>([]);
+  const [timesPerWeek, setTimesPerWeek] = useState(3);
+  const [restToday, setRestToday] = useState(false);
   const REMINDER_TIMES = ['06:00', '07:00', '08:00', '09:00', '12:00', '18:00', '20:00', '22:00'];
   const insets = useSafeAreaInsets();
 
   const handleSave = async () => {
     try {
+      if (frequencyType === 'specific_days' && specificDays.length === 0) {
+        Alert.alert('Frecuencia incompleta', 'Selecciona al menos un día de la semana.');
+        return;
+      }
+
       const validatedData = habitSchema.parse({
         name,
         icon: selectedIcon || '⭐',
@@ -45,6 +57,10 @@ export default function AddHabitScreen() {
         icon: validatedData.icon,
         color: validatedData.color,
         notes: validatedData.notes || '',
+        frequencyType,
+        specificDays,
+        timesPerWeek,
+        restDates: restToday ? [getTodayString()] : [],
         completedDates: [],
         streak: 0,
         createdAt: new Date().toISOString(),
@@ -60,7 +76,7 @@ export default function AddHabitScreen() {
           Alert.alert('Permiso requerido', 'Activa las notificaciones para usar recordatorios.');
           return;
         }
-        await scheduleHabitReminder(newHabit.id, newHabit.name, newHabit.icon, reminderTime);
+        await scheduleHabitReminder(newHabit.id, newHabit.name, newHabit.icon, reminderTime, newHabit);
       }
       router.back();
     } catch (error: any) {
@@ -139,6 +155,85 @@ export default function AddHabitScreen() {
         <Text style={[styles.charCount, { color: colors.textMuted }]}>
           {notes.length}/300
         </Text>
+
+        <Text style={[styles.label, { color: colors.textMuted }]}>Frecuencia</Text>
+        <View style={styles.timesGrid}>
+          {[
+            { key: 'daily', label: 'Diario' },
+            { key: 'specific_days', label: 'Días fijos' },
+            { key: 'times_per_week', label: 'X / semana' },
+          ].map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[
+                styles.timeBtn,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                frequencyType === opt.key && { backgroundColor: colors.primary, borderColor: colors.primary },
+              ]}
+              onPress={() => setFrequencyType(opt.key as HabitFrequencyType)}
+            >
+              <Text style={[styles.timeBtnText, { color: frequencyType === opt.key ? '#FFF' : colors.text }]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {frequencyType === 'specific_days' && (
+          <View style={styles.timesGrid}>
+            {WEEK_DAYS.map((day, idx) => {
+              const selected = specificDays.includes(idx);
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.timeBtn,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                  onPress={() =>
+                    setSpecificDays((prev) =>
+                      prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx]
+                    )
+                  }
+                >
+                  <Text style={[styles.timeBtnText, { color: selected ? '#FFF' : colors.text }]}>{day}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {frequencyType === 'times_per_week' && (
+          <View style={styles.timesGrid}>
+            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+              <TouchableOpacity
+                key={n}
+                style={[
+                  styles.timeBtn,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  timesPerWeek === n && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+                onPress={() => setTimesPerWeek(n)}
+              >
+                <Text style={[styles.timeBtnText, { color: timesPerWeek === n ? '#FFF' : colors.text }]}>{n}x</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <View style={[styles.reminderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.reminderLeft}>
+            <Text style={styles.reminderIcon}>🛌</Text>
+            <Text style={[styles.reminderLabel, { color: colors.text }]}>Descanso hoy</Text>
+          </View>
+          <Switch
+            value={restToday}
+            onValueChange={setRestToday}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#FFF"
+          />
+        </View>
 
         {/* Recordatorio */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Recordatorio</Text>
