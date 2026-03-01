@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import Animated, {
+  FadeInDown,
+  FadeOutUp,
+  Layout,
   useAnimatedStyle,
   useSharedValue,
   withTiming
@@ -21,6 +24,7 @@ import HabitCard from '../components/HabitCard';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { useThemeStore } from '../store/themeStore';
+import { useUiStore } from '../store/uiStore';
 import { getGreeting, getTodayString } from '../utils/dateHelpers';
 import { isHabitDueOnDate } from '../utils/habitFrequency';
 import { t } from '../utils/i18n';
@@ -31,13 +35,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { habits, toggleHabit, loadHabits } = useHabitStore();
+  const { habits, toggleHabit, loadHabits, isLoading } = useHabitStore();
   const today = getTodayString();
   const prevCompletedRef = useRef(0);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
   const [confettiKey, setConfettiKey] = useState(0);
+  const showToast = useUiStore((s) => s.showToast);
   const { userName } = useThemeStore();
 
 
@@ -80,9 +85,10 @@ export default function HomeScreen() {
       // Montamos confeti solo al completar todo para evitar artefactos visuales en pantalla.
       setConfettiKey((k) => k + 1);
       setShowConfetti(true);
+      showToast('¡Excelente! Completaste tus hábitos de hoy.', 'success');
     }
     prevCompletedRef.current = completedCount;
-  }, [completedCount, activeHabits.length, dueTodayHabits.length]);
+  }, [completedCount, activeHabits.length, dueTodayHabits.length, showToast]);
 
   useEffect(() => {
     // Animación simple y estable para evitar artefactos de render en algunos Android.
@@ -187,7 +193,23 @@ export default function HomeScreen() {
       </View>
 
       {/* Lista de hábitos activos */}
-      {activeHabits.length === 0 && archivedHabits.length === 0 ? (
+      {isLoading ? (
+        <View style={styles.skeletonWrap}>
+          {[0, 1, 2].map((i) => (
+            <Animated.View
+              key={`s_${i}`}
+              entering={FadeInDown.delay(i * 70).duration(250)}
+              style={[styles.skeletonCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={[styles.skeletonIcon, { backgroundColor: colors.border }]} />
+              <View style={styles.skeletonLines}>
+                <View style={[styles.skeletonLineBig, { backgroundColor: colors.border }]} />
+                <View style={[styles.skeletonLineSmall, { backgroundColor: colors.border }]} />
+              </View>
+            </Animated.View>
+          ))}
+        </View>
+      ) : activeHabits.length === 0 && archivedHabits.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>🌱</Text>
           <Text style={[styles.emptyText, { color: colors.text }]}>
@@ -202,7 +224,13 @@ export default function HomeScreen() {
           data={activeHabits}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <HabitCard habit={item} onToggle={toggleHabit} />
+            <Animated.View
+              entering={FadeInDown.duration(220)}
+              exiting={FadeOutUp.duration(160)}
+              layout={Layout.springify().damping(18).stiffness(180)}
+            >
+              <HabitCard habit={item} onToggle={toggleHabit} />
+            </Animated.View>
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
@@ -225,9 +253,15 @@ export default function HomeScreen() {
 
                 {/* Lista de archivados */}
                 {showArchived && archivedHabits.map(item => (
-                  <View key={item.id} style={styles.archivedItem}>
+                  <Animated.View
+                    key={item.id}
+                    style={styles.archivedItem}
+                    entering={FadeInDown.duration(180)}
+                    exiting={FadeOutUp.duration(140)}
+                    layout={Layout.springify().damping(18).stiffness(180)}
+                  >
                     <HabitCard habit={item} onToggle={toggleHabit} />
-                  </View>
+                  </Animated.View>
                 ))}
               </View>
             ) : null
@@ -277,6 +311,19 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 4 },
   progressPercent: { fontSize: 12, fontWeight: '600' },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
+  skeletonWrap: { paddingHorizontal: 20, paddingBottom: 20 },
+  skeletonCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  skeletonIcon: { width: 48, height: 48, borderRadius: 12, marginRight: 12, opacity: 0.45 },
+  skeletonLines: { flex: 1 },
+  skeletonLineBig: { height: 16, width: '60%', borderRadius: 8, marginBottom: 10, opacity: 0.45 },
+  skeletonLineSmall: { height: 12, width: '40%', borderRadius: 8, opacity: 0.32 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyIcon: { fontSize: 64, marginBottom: 16 },
   emptyText: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },

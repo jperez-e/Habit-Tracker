@@ -26,6 +26,7 @@ export type Habit = {
 
 type HabitStore = {
   habits: Habit[];
+  isLoading: boolean;
   addHabit: (habit: Habit) => Promise<void>;
   updateHabit: (id: string, updates: Partial<Habit>) => Promise<void>; // ← nuevo
   toggleHabit: (id: string, date: string) => Promise<void>;
@@ -39,6 +40,7 @@ type HabitStore = {
 
 export const useHabitStore = create<HabitStore>((set, get) => ({
   habits: [],
+  isLoading: false,
 
   addHabit: async (habit) => {
     try {
@@ -275,6 +277,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
   loadHabits: async () => {
     try {
+      set({ isLoading: true });
       // 1. Load local
       const localData = await AsyncStorage.getItem('habits');
       let localHabits: Habit[] = localData ? JSON.parse(localData) : [];
@@ -423,6 +426,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       await Promise.all(reminderJobs);
     } catch (error) {
       console.error('Error loading habits from storage:', error);
+    } finally {
+      set({ isLoading: false });
     }
   },
 

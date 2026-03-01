@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
   ScrollView, StatusBar,
@@ -7,6 +7,7 @@ import {
   View
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import Animated, { FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
@@ -18,6 +19,11 @@ const DAY_NAMES_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'V
 export default function StatsScreen() {
   const colors = useColors();
   const { habits } = useHabitStore();
+  const [selectedPoint, setSelectedPoint] = useState<{
+    index: number;
+    value: number;
+    date: string;
+  } | null>(null);
   const today = getTodayString();
   const activeHabits = habits.filter(h => !h.archived);
 
@@ -103,26 +109,43 @@ export default function StatsScreen() {
       <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={[styles.screenTitle, { color: colors.text }]}>Estadísticas</Text>
+        <Animated.Text
+          entering={FadeInUp.duration(260)}
+          style={[styles.screenTitle, { color: colors.text }]}
+        >
+          Estadísticas
+        </Animated.Text>
 
         {/* Tarjetas principales */}
-        <View style={styles.cardsGrid}>
+        <Animated.View
+          entering={FadeInDown.duration(260)}
+          layout={Layout.springify().damping(18).stiffness(200)}
+          style={styles.cardsGrid}
+        >
           {[
             { label: 'Hábitos activos', value: activeHabits.length, icon: '📋' },
             { label: 'Completados hoy', value: stats.completedToday, icon: '✅' },
             { label: 'Mejor racha', value: `${stats.bestStreakEver} días`, icon: '🔥' },
             { label: 'Total completados', value: stats.totalCompleted, icon: '🏆' },
           ].map((card, i) => (
-            <View key={i} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Animated.View
+              key={i}
+              entering={FadeInDown.delay(i * 50).duration(220)}
+              style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
               <Text style={styles.cardIcon}>{card.icon}</Text>
               <Text style={[styles.cardValue, { color: colors.primary }]}>{card.value}</Text>
               <Text style={[styles.cardLabel, { color: colors.textMuted }]}>{card.label}</Text>
-            </View>
+            </Animated.View>
           ))}
-        </View>
+        </Animated.View>
 
         {/* Comparativa semanas */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Animated.View
+          entering={FadeInDown.delay(120).duration(260)}
+          layout={Layout.springify().damping(18).stiffness(200)}
+          style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Esta semana vs semana anterior</Text>
           <View style={styles.compareRow}>
             <View style={styles.compareItem}>
@@ -172,10 +195,14 @@ export default function StatsScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Gráfica mensual usando react-native-chart-kit */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Animated.View
+          entering={FadeInDown.delay(170).duration(260)}
+          layout={Layout.springify().damping(18).stiffness(200)}
+          style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Últimos 30 días</Text>
           <View style={{ alignItems: 'center', marginTop: 10 }}>
             <LineChart
@@ -206,16 +233,46 @@ export default function StatsScreen() {
                 }
               }}
               bezier
+              onDataPointClick={(data) => {
+                const point = stats.monthlyData[data.index];
+                if (!point) return;
+                setSelectedPoint({
+                  index: data.index,
+                  value: data.value,
+                  date: point.date,
+                });
+              }}
               style={{
                 marginVertical: 8,
                 borderRadius: 16
               }}
             />
           </View>
-        </View>
+          {selectedPoint && (
+            <Animated.View
+              entering={FadeInUp.duration(180)}
+              layout={Layout.springify().damping(20).stiffness(210)}
+              style={[styles.tooltipCard, { backgroundColor: colors.background, borderColor: colors.border }]}
+            >
+              <Text style={[styles.tooltipTitle, { color: colors.text }]}>
+                {new Date(selectedPoint.date + 'T12:00:00').toLocaleDateString('es-DO', {
+                  day: '2-digit',
+                  month: 'short',
+                })}
+              </Text>
+              <Text style={[styles.tooltipValue, { color: colors.primary }]}>
+                {selectedPoint.value} completados
+              </Text>
+            </Animated.View>
+          )}
+        </Animated.View>
 
         {/* Mejor día de la semana */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Animated.View
+          entering={FadeInDown.delay(220).duration(260)}
+          layout={Layout.springify().damping(18).stiffness(200)}
+          style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Mejor día de la semana</Text>
           <View style={styles.bestDayRow}>
             <Text style={styles.bestDayEmoji}>📅</Text>
@@ -252,15 +309,19 @@ export default function StatsScreen() {
               );
             })}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Hábito más consistente */}
         {stats.mostConsistent && (
-          <View style={[styles.section, {
-            backgroundColor: colors.card,
-            borderColor: stats.mostConsistent.color,
-            borderWidth: 2,
-          }]}>
+          <Animated.View
+            entering={FadeInDown.delay(260).duration(260)}
+            layout={Layout.springify().damping(18).stiffness(200)}
+            style={[styles.section, {
+              backgroundColor: colors.card,
+              borderColor: stats.mostConsistent.color,
+              borderWidth: 2,
+            }]}
+          >
             <Text style={[styles.sectionTitle, { color: colors.text }]}>🏆 Hábito más consistente</Text>
             <View style={styles.consistentRow}>
               <View style={[styles.consistentIcon, { backgroundColor: stats.mostConsistent.color + '33' }]}>
@@ -275,11 +336,15 @@ export default function StatsScreen() {
                 </Text>
               </View>
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {/* Rendimiento por hábito */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Animated.View
+          entering={FadeInDown.delay(300).duration(260)}
+          layout={Layout.springify().damping(18).stiffness(200)}
+          style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Rendimiento por hábito</Text>
           {activeHabits.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>
@@ -295,7 +360,12 @@ export default function StatsScreen() {
                   ))) * 100), 100)
                 : 0;
               return (
-                <View key={habit.id} style={styles.habitRow}>
+                <Animated.View
+                  key={habit.id}
+                  entering={FadeInDown.duration(220)}
+                  layout={Layout.springify().damping(18).stiffness(200)}
+                  style={styles.habitRow}
+                >
                   <Text style={styles.habitRowIcon}>{habit.icon}</Text>
                   <View style={styles.habitRowInfo}>
                     <Text style={[styles.habitRowName, { color: colors.text }]} numberOfLines={1}>
@@ -309,11 +379,11 @@ export default function StatsScreen() {
                     </View>
                   </View>
                   <Text style={[styles.habitRowRate, { color: habit.color }]}>{rate}%</Text>
-                </View>
+                </Animated.View>
               );
             })
           )}
-        </View>
+        </Animated.View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -337,6 +407,9 @@ const styles = StyleSheet.create({
   compareLabel: { fontSize: 13, marginTop: 4 },
   compareDivider: { alignItems: 'center' },
   compareArrow: { fontSize: 22, fontWeight: 'bold' },
+  tooltipCard: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 6 },
+  tooltipTitle: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
+  tooltipValue: { fontSize: 14, fontWeight: '700' },
   weekBars: { flexDirection: 'row', justifyContent: 'space-between', height: 80 },
   weekBarCol: { alignItems: 'center', flex: 1 },
   weekBarPair: { flexDirection: 'row', gap: 2, flex: 1, alignItems: 'flex-end' },

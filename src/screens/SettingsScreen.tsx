@@ -16,11 +16,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { FadeInDown, FadeOutUp, Layout } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { supabase } from '../lib/supabase';
 import { useHabitStore } from '../store/habitStore';
 import { useThemeStore } from '../store/themeStore';
+import { useUiStore } from '../store/uiStore';
 import {
   cancelGlobalReminder,
   GlobalReminderFrequency,
@@ -57,6 +59,7 @@ function SettingRow({ icon, label, subtitle, onPress, right, danger, colors }: S
 
 export default function SettingsScreen() {
   const colors = useColors();
+  const showToast = useUiStore((s) => s.showToast);
   const { habits, clearAllHabits, resetStore, importHabitsFromBackup } = useHabitStore();
   const { themeMode, setThemeMode, loadTheme } = useThemeStore();
   const [notifications, setNotifications] = useState(false);
@@ -144,7 +147,7 @@ export default function SettingsScreen() {
     if (value) {
       const granted = await requestPermissions();
       if (!granted) {
-        Alert.alert('Permiso requerido', 'Activa las notificaciones para usar recordatorios.');
+        showToast('Permiso requerido para notificaciones.', 'error');
         return;
       }
       const [hour, minute] = reminderTime.split(':').map(Number);
@@ -155,6 +158,7 @@ export default function SettingsScreen() {
 
     setNotifications(value);
     await AsyncStorage.setItem('notifications_enabled', String(value));
+    showToast(value ? 'Notificaciones activadas.' : 'Notificaciones desactivadas.', 'info');
   };
 
   // La hora seleccionada también se persiste para mantener consistencia entre sesiones.
@@ -168,6 +172,7 @@ export default function SettingsScreen() {
       const [hour, minute] = time.split(':').map(Number);
       await scheduleGlobalReminder(hour, minute, reminderFrequency);
     }
+    showToast('Hora global actualizada.', 'success');
   };
 
   const handleSelectReminderFrequency = async (frequency: GlobalReminderFrequency) => {
@@ -179,6 +184,8 @@ export default function SettingsScreen() {
       const [hour, minute] = reminderTime.split(':').map(Number);
       await scheduleGlobalReminder(hour, minute, frequency);
     }
+
+    showToast('Frecuencia global actualizada.', 'success');
   };
 
   const handleReminderTimeChange = async (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -219,7 +226,7 @@ export default function SettingsScreen() {
 
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) {
-        Alert.alert('Backup creado', `Archivo generado en:\n${fileUri}`);
+        showToast('Backup generado en caché local.', 'success');
         return;
       }
 
@@ -227,9 +234,10 @@ export default function SettingsScreen() {
         mimeType: 'application/json',
         dialogTitle: 'Exportar backup de Habit Tracker',
       });
+      showToast('Backup exportado correctamente.', 'success');
     } catch (error) {
       console.error('Error exporting backup:', error);
-      Alert.alert('Error', 'No se pudo exportar el backup.');
+      showToast('No se pudo exportar el backup.', 'error');
     }
   };
 
@@ -286,10 +294,10 @@ export default function SettingsScreen() {
 
       await loadTheme();
 
-      Alert.alert('Backup importado', 'Tus datos fueron restaurados correctamente.');
+      showToast('Backup importado correctamente.', 'success');
     } catch (error) {
       console.error('Error importing backup:', error);
-      Alert.alert('Error', 'No se pudo importar el backup.');
+      showToast('No se pudo importar el backup.', 'error');
     }
   };
 
@@ -370,7 +378,10 @@ export default function SettingsScreen() {
 
         {/* Preferencias */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Preferencias</Text>
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Animated.View
+          layout={Layout.springify().damping(20).stiffness(210)}
+          style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
           <SettingRow
             icon="🌙"
             label="Tema de la aplicación"
@@ -379,7 +390,12 @@ export default function SettingsScreen() {
             onPress={() => setShowThemePicker(!showThemePicker)}
           />
           {showThemePicker && (
-            <View style={styles.timePicker}>
+            <Animated.View
+              entering={FadeInDown.duration(180)}
+              exiting={FadeOutUp.duration(140)}
+              layout={Layout.springify().damping(20).stiffness(210)}
+              style={styles.timePicker}
+            >
               {[
                 { label: 'Sistema', value: 'system' },
                 { label: 'Oscuro', value: 'dark' },
@@ -396,7 +412,7 @@ export default function SettingsScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </Animated.View>
           )}
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
@@ -437,7 +453,12 @@ export default function SettingsScreen() {
             onPress={() => setShowFrequencyPicker(!showFrequencyPicker)}
           />
           {showFrequencyPicker && (
-            <View style={styles.timePicker}>
+            <Animated.View
+              entering={FadeInDown.duration(180)}
+              exiting={FadeOutUp.duration(140)}
+              layout={Layout.springify().damping(20).stiffness(210)}
+              style={styles.timePicker}
+            >
               {[
                 { value: 'daily', label: 'Una vez al día' },
                 { value: 'every_2h', label: 'Cada 2h' },
@@ -455,7 +476,7 @@ export default function SettingsScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </Animated.View>
           )}
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -467,7 +488,12 @@ export default function SettingsScreen() {
             onPress={reminderFrequency === 'daily' ? () => setShowTimePicker(true) : undefined}
           />
           {showTimePicker && (
-            <View style={styles.timePicker}>
+            <Animated.View
+              entering={FadeInDown.duration(180)}
+              exiting={FadeOutUp.duration(140)}
+              layout={Layout.springify().damping(20).stiffness(210)}
+              style={styles.timePicker}
+            >
               <DateTimePicker
                 value={reminderDate}
                 mode="time"
@@ -483,9 +509,9 @@ export default function SettingsScreen() {
                   <Text style={styles.timeDoneText}>Listo</Text>
                 </TouchableOpacity>
               )}
-            </View>
+            </Animated.View>
           )}
-        </View>
+        </Animated.View>
 
         {/* Acerca de */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Acerca de la app</Text>

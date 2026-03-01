@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import * as Notifications from 'expo-notifications';
+import ToastViewport from '../src/components/ToastViewport';
 import { initSentry } from '../src/lib/sentry';
 import { supabase } from '../src/lib/supabase';
 import AuthScreen from '../src/screens/AuthScreen';
@@ -65,14 +66,24 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="onboarding" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="add-habit" />
-      <Stack.Screen name="habit-detail" />
-      <Stack.Screen name="edit-habit" />
-      <Stack.Screen name="profile" />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade_from_bottom',
+          animationDuration: 220,
+          gestureEnabled: true,
+        }}
+      >
+        <Stack.Screen name="index" options={{ animation: 'fade' }} />
+        <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="add-habit" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="habit-detail" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="edit-habit" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
+      </Stack>
+      <ToastViewport />
+    </>
   );
 }
