@@ -14,9 +14,9 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring, withTiming
+  withTiming
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import HabitCard from '../components/HabitCard';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
@@ -29,6 +29,7 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const { habits, toggleHabit, loadHabits } = useHabitStore();
   const today = getTodayString();
@@ -42,13 +43,11 @@ export default function HomeScreen() {
 
   const progressWidth = useSharedValue(0);
   const headerOpacity = useSharedValue(0);
-  const headerTranslateY = useSharedValue(-20);
 
   useEffect(() => {
     loadHabits();
     headerOpacity.value = withTiming(1, { duration: 600 });
-    headerTranslateY.value = withSpring(0, { damping: 12, stiffness: 100 });
-  }, [loadHabits, headerOpacity, headerTranslateY]);
+  }, [loadHabits, headerOpacity]);
 
   const activeHabits = habits
     .filter(h => !h.archived)
@@ -86,12 +85,12 @@ export default function HomeScreen() {
   }, [completedCount, activeHabits.length, dueTodayHabits.length]);
 
   useEffect(() => {
-    progressWidth.value = withSpring(progress, { damping: 14, stiffness: 80 });
+    // Animación simple y estable para evitar artefactos de render en algunos Android.
+    progressWidth.value = withTiming(progress, { duration: 350 });
   }, [progress, progressWidth]);
 
   const headerStyle = useAnimatedStyle(() => ({
     opacity: headerOpacity.value,
-    transform: [{ translateY: headerTranslateY.value }],
   }));
 
   const progressBarStyle = useAnimatedStyle(() => ({
@@ -118,13 +117,18 @@ export default function HomeScreen() {
 
 
       {/* Header animado */}
-      <Animated.View style={[styles.header, headerStyle]}>
+      <Animated.View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }, headerStyle]}>
         <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
-            {`${getGreeting()}${userName ? `, ${userName}` : ''} 👋`}
-          </Text>
+          <View style={styles.greetingRow}>
+            <Text
+              style={[styles.greeting, { color: colors.text }]}
+            >
+              {`${getGreeting()}${userName ? `, ${userName}` : ''}`}
+            </Text>
+            <Text style={styles.greetingEmoji}>👋</Text>
+          </View>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          {t('check_progress')}
+            {t('check_progress')}
           </Text>
           {dueTodayHabits.length < activeHabits.length && (
             <Text style={[styles.subtitleSmall, { color: colors.textMuted }]}>
@@ -238,9 +242,11 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16,
+    alignItems: 'center', paddingHorizontal: 20, paddingBottom: 16,
   },
-  greeting: { fontSize: 24, fontWeight: 'bold' },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0 },
+  greeting: { fontSize: 24, fontWeight: 'bold', flexShrink: 1, minWidth: 0 },
+  greetingEmoji: { fontSize: 24, marginLeft: 6, flexShrink: 0 },
   subtitle: { fontSize: 14, marginTop: 4 },
   subtitleSmall: { fontSize: 12, marginTop: 2 },
   addButton: {
