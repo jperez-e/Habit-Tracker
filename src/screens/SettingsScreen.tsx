@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -6,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Modal,
+  Platform,
   ScrollView, StatusBar,
   StyleSheet,
   Switch,
@@ -48,8 +50,6 @@ function SettingRow({ icon, label, subtitle, onPress, right, danger, colors }: S
   );
 }
 
-const HOURS = ['06:00', '07:00', '08:00', '09:00', '10:00', '18:00', '20:00', '21:00'];
-
 export default function SettingsScreen() {
   const colors = useColors();
   const { habits, clearAllHabits, resetStore, importHabitsFromBackup } = useHabitStore();
@@ -63,6 +63,12 @@ export default function SettingsScreen() {
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
   const [nameModalVisible, setNameModalVisible] = useState(false);
   const [tempName, setTempName] = useState(userName);
+  const reminderDate = React.useMemo(() => {
+    const [hour, minute] = reminderTime.split(':').map(Number);
+    const d = new Date();
+    d.setHours(Number.isFinite(hour) ? hour : 8, Number.isFinite(minute) ? minute : 0, 0, 0);
+    return d;
+  }, [reminderTime]);
 
   useEffect(() => {
     setTempName(userName);
@@ -153,6 +159,17 @@ export default function SettingsScreen() {
       const [hour, minute] = time.split(':').map(Number);
       await scheduleGlobalReminder(hour, minute);
     }
+  };
+
+  const handleReminderTimeChange = async (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (event.type === 'dismissed' || !selectedDate) return;
+
+    const hh = String(selectedDate.getHours()).padStart(2, '0');
+    const mm = String(selectedDate.getMinutes()).padStart(2, '0');
+    await handleSelectReminderTime(`${hh}:${mm}`);
   };
 
   const handleExportBackup = async () => {
@@ -384,22 +401,25 @@ export default function SettingsScreen() {
             label="Hora del recordatorio"
             subtitle={reminderTime}
             colors={colors}
-            onPress={() => setShowTimePicker(!showTimePicker)}
+            onPress={() => setShowTimePicker(true)}
           />
           {showTimePicker && (
             <View style={styles.timePicker}>
-              {HOURS.map((time) => (
+              <DateTimePicker
+                value={reminderDate}
+                mode="time"
+                is24Hour
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleReminderTimeChange}
+              />
+              {Platform.OS === 'ios' && (
                 <TouchableOpacity
-                  key={time}
-                  style={[styles.timeBtn, { backgroundColor: colors.border },
-                  reminderTime === time && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
-                  onPress={() => { handleSelectReminderTime(time); }}
+                  style={[styles.timeDoneBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => setShowTimePicker(false)}
                 >
-                  <Text style={[styles.timeText, { color: reminderTime === time ? colors.primary : colors.textMuted }]}>
-                    {time}
-                  </Text>
+                  <Text style={styles.timeDoneText}>Listo</Text>
                 </TouchableOpacity>
-              ))}
+              )}
             </View>
           )}
         </View>
@@ -497,6 +517,14 @@ const styles = StyleSheet.create({
   timePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 16, paddingTop: 0 },
   timeBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'transparent' },
   timeText: { fontSize: 14 },
+  timeDoneBtn: {
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  timeDoneText: { color: '#FFF', fontWeight: '600' },
   footerContainer: {
     alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20,
   },
