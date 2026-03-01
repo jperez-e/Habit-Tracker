@@ -1,11 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { cancelHabitReminder, requestPermissions, scheduleHabitReminder } from '../utils/notifications';
 import { HabitFrequencyType } from '../utils/habitFrequency';
 import { getTodayString } from '../utils/dateHelpers';
 
 import {
-  Alert, ScrollView, StatusBar, StyleSheet, Switch,
+  Alert, Platform, ScrollView, StatusBar, StyleSheet, Switch,
   Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,21 +28,38 @@ export default function EditHabitScreen() {
   const habit = habits.find(h => h.id === habitId);
   const [reminderEnabled, setReminderEnabled] = useState(habit?.reminderEnabled ?? false);
   const [reminderTime, setReminderTime] = useState(habit?.reminderTime ?? '08:00');
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>(habit?.frequencyType ?? 'daily');
   const [specificDays, setSpecificDays] = useState<number[]>(habit?.specificDays ?? []);
   const [timesPerWeek, setTimesPerWeek] = useState(habit?.timesPerWeek ?? 3);
   const [restToday, setRestToday] = useState((habit?.restDates ?? []).includes(getTodayString()));
-  const REMINDER_TIMES = ['06:00', '07:00', '08:00', '09:00', '12:00', '18:00', '20:00', '22:00'];
   const [name, setName] = useState(habit?.name ?? '');
   const [selectedIcon, setSelectedIcon] = useState(habit?.icon ?? '⭐');
   const [selectedColor, setSelectedColor] = useState(habit?.color ?? '#6C63FF');
   const [notes, setNotes] = useState(habit?.notes ?? ''); // ✅ carga notas existentes
 
+  const reminderDate = React.useMemo(() => {
+    const [hour, minute] = reminderTime.split(':').map(Number);
+    const d = new Date();
+    d.setHours(Number.isFinite(hour) ? hour : 8, Number.isFinite(minute) ? minute : 0, 0, 0);
+    return d;
+  }, [reminderTime]);
 
   if (!habit) {
     router.back();
     return null;
   }
+
+  const handleReminderTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (event.type === 'dismissed' || !selectedDate) return;
+
+    const hh = String(selectedDate.getHours()).padStart(2, '0');
+    const mm = String(selectedDate.getMinutes()).padStart(2, '0');
+    setReminderTime(`${hh}:${mm}`);
+  };
 
   const handleSave = async () => {
     try {
@@ -270,22 +288,24 @@ export default function EditHabitScreen() {
         </View>
 
         {reminderEnabled && (
-          <View style={styles.timesGrid}>
-            {REMINDER_TIMES.map(time => (
-              <TouchableOpacity
-                key={time}
-                style={[
-                  styles.timeBtn,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  reminderTime === time && { backgroundColor: colors.primary, borderColor: colors.primary },
-                ]}
-                onPress={() => setReminderTime(time)}
-              >
-                <Text style={[styles.timeBtnText, { color: reminderTime === time ? '#FFF' : colors.text }]}>
-                  {time}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.reminderPickerWrap}>
+            <TouchableOpacity
+              style={[styles.reminderPickerBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <Text style={[styles.reminderPickerLabel, { color: colors.textMuted }]}>Hora del recordatorio</Text>
+              <Text style={[styles.reminderPickerValue, { color: colors.primary }]}>{reminderTime}</Text>
+            </TouchableOpacity>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={reminderDate}
+                mode="time"
+                is24Hour
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleReminderTimeChange}
+              />
+            )}
           </View>
         )}
 
@@ -390,6 +410,16 @@ const styles = StyleSheet.create({
   reminderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   reminderIcon: { fontSize: 20 },
   reminderLabel: { fontSize: 15, fontWeight: '500' },
+  reminderPickerWrap: { marginBottom: 24 },
+  reminderPickerBtn: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  reminderPickerLabel: { fontSize: 12, marginBottom: 4 },
+  reminderPickerValue: { fontSize: 18, fontWeight: '700' },
   timesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   timeBtn: {
     paddingHorizontal: 16, paddingVertical: 8,

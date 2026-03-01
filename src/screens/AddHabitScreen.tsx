@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import {
   Alert,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet, Switch, Text, TextInput,
@@ -30,12 +32,31 @@ export default function AddHabitScreen() {
   const [notes, setNotes] = useState('');
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>('daily');
   const [specificDays, setSpecificDays] = useState<number[]>([]);
   const [timesPerWeek, setTimesPerWeek] = useState(3);
   const [restToday, setRestToday] = useState(false);
-  const REMINDER_TIMES = ['06:00', '07:00', '08:00', '09:00', '12:00', '18:00', '20:00', '22:00'];
   const insets = useSafeAreaInsets();
+
+  const reminderDate = React.useMemo(() => {
+    const [hour, minute] = reminderTime.split(':').map(Number);
+    const d = new Date();
+    d.setHours(Number.isFinite(hour) ? hour : 8, Number.isFinite(minute) ? minute : 0, 0, 0);
+    return d;
+  }, [reminderTime]);
+
+  const handleReminderTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (event.type === 'dismissed' || !selectedDate) return;
+
+    // Guardamos la hora en formato HH:MM para usarla en recordatorios.
+    const hh = String(selectedDate.getHours()).padStart(2, '0');
+    const mm = String(selectedDate.getMinutes()).padStart(2, '0');
+    setReminderTime(`${hh}:${mm}`);
+  };
 
   const handleSave = async () => {
     try {
@@ -253,25 +274,24 @@ export default function AddHabitScreen() {
         </View>
 
         {reminderEnabled && (
-          <View style={styles.timesGrid}>
-            {REMINDER_TIMES.map(time => (
-              <TouchableOpacity
-                key={time}
-                style={[
-                  styles.timeBtn,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  reminderTime === time && { backgroundColor: colors.primary, borderColor: colors.primary },
-                ]}
-                onPress={() => setReminderTime(time)}
-              >
-                <Text style={[
-                  styles.timeBtnText,
-                  { color: reminderTime === time ? '#FFF' : colors.text }
-                ]}>
-                  {time}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.reminderPickerWrap}>
+            <TouchableOpacity
+              style={[styles.reminderPickerBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <Text style={[styles.reminderPickerLabel, { color: colors.textMuted }]}>Hora del recordatorio</Text>
+              <Text style={[styles.reminderPickerValue, { color: colors.primary }]}>{reminderTime}</Text>
+            </TouchableOpacity>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={reminderDate}
+                mode="time"
+                is24Hour
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleReminderTimeChange}
+              />
+            )}
           </View>
         )}
 
@@ -371,6 +391,16 @@ const styles = StyleSheet.create({
   reminderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   reminderIcon: { fontSize: 20 },
   reminderLabel: { fontSize: 15, fontWeight: '500' },
+  reminderPickerWrap: { marginBottom: 24 },
+  reminderPickerBtn: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  reminderPickerLabel: { fontSize: 12, marginBottom: 4 },
+  reminderPickerValue: { fontSize: 18, fontWeight: '700' },
   timesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   timeBtn: {
     paddingHorizontal: 16, paddingVertical: 8,
