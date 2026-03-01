@@ -35,7 +35,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { habits, toggleHabit, loadHabits, isLoading } = useHabitStore();
+  const habits = useHabitStore((s) => s.habits);
+  const toggleHabit = useHabitStore((s) => s.toggleHabit);
+  const loadHabits = useHabitStore((s) => s.loadHabits);
+  // Tipado defensivo para evitar falsos positivos de TS Server en VS Code.
+  const isLoading = useHabitStore((s: any) => Boolean(s?.isLoading));
   const today = getTodayString();
   const prevCompletedRef = useRef(0);
   const [showArchived, setShowArchived] = useState(false);
