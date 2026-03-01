@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
+  Modal,
   ScrollView, StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
@@ -15,14 +17,23 @@ import { getTodayString } from '../utils/dateHelpers';
 
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAY_NAMES_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const RANGE_OPTIONS = [
+  { key: 7, label: '7d' },
+  { key: 30, label: '30d' },
+  { key: 90, label: '90d' },
+  { key: 365, label: '1a' },
+];
 
 export default function StatsScreen() {
   const colors = useColors();
   const { habits } = useHabitStore();
+  const [selectedRange, setSelectedRange] = useState(30);
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<{
     index: number;
     value: number;
     date: string;
+    percent: number;
   } | null>(null);
   const today = getTodayString();
   const activeHabits = habits.filter(h => !h.archived);
@@ -55,10 +66,10 @@ export default function StatsScreen() {
       h.completedDates.includes(today)
     ).length;
 
-    // Gráfica mensual — últimos 30 días
-    const monthlyData = Array.from({ length: 30 }, (_, i) => {
+    // Gráfica de rango dinámico
+    const rangeData = Array.from({ length: selectedRange }, (_, i) => {
       const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
+      d.setDate(d.getDate() - (selectedRange - 1 - i));
       const dateStr = d.toISOString().split('T')[0];
       const count = activeHabits.filter(h => h.completedDates.includes(dateStr)).length;
       return { date: dateStr, count, day: d.getDate() };
@@ -89,24 +100,85 @@ export default function StatsScreen() {
     });
     const bestDayIndex = dayTotals.indexOf(Math.max(...dayTotals));
 
-    const maxMonthly = Math.max(...monthlyData.map(d => d.count), 1);
+    const maxMonthly = Math.max(...rangeData.map(d => d.count), 1);
     const maxWeekly = Math.max(...thisWeek, ...lastWeek, 1);
+
+    const weekSuggestion = thisWeekTotal >= 14
+      ? 'Muy bien. Mantén el ritmo esta semana.'
+      : thisWeekTotal >= 7
+        ? 'Buen avance. Puedes subir 1-2 completados diarios.'
+        : 'Objetivo recomendado: +2 completados por día.';
+
+    const habitAtRisk = activeHabits
+      .map((h) => {
+        const last7 = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          return d.toISOString().split('T')[0];
+        });
+        const done = last7.filter((d) => h.completedDates.includes(d)).length;
+        return { habit: h, done };
+      })
+      .sort((a, b) => a.done - b.done)[0];
 
     return {
       totalCompleted, bestStreakEver, mostConsistent,
-      completedToday, monthlyData, thisWeek, lastWeek,
+      completedToday, rangeData, thisWeek, lastWeek,
       thisWeekTotal, lastWeekTotal, bestDayIndex, dayTotals,
-      maxMonthly, maxWeekly,
+      maxMonthly, maxWeekly, weekSuggestion, habitAtRisk,
     };
-  }, [habits, today, activeHabits]);
+  }, [habits, today, activeHabits, selectedRange]);
 
   const weekImprovement = stats.lastWeekTotal > 0
     ? Math.round(((stats.thisWeekTotal - stats.lastWeekTotal) / stats.lastWeekTotal) * 100)
     : 0;
 
+  const selectedHabit = useMemo(
+    () => activeHabits.find((h) => h.id === selectedHabitId) ?? null,
+    [activeHabits, selectedHabitId]
+  );
+
+  const selectedHabitRate = useMemo(() => {
+    if (!selectedHabit) return 0;
+    const totalDays = Math.max(
+      1,
+      Math.ceil((Date.now() - new Date(selectedHabit.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    );
+    return Math.min(100, Math.round((selectedHabit.completedDates.length / totalDays) * 100));
+  }, [selectedHabit]);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.text === '#FFFFFF' ? 'light-content' : 'dark-content'} />
+      <Modal
+        visible={!!selectedHabit}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedHabitId(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {selectedHabit && (
+              <>
+                <Text style={styles.modalHabitIcon}>{selectedHabit.icon}</Text>
+                <Text style={[styles.modalHabitName, { color: colors.text }]}>{selectedHabit.name}</Text>
+                <Text style={[styles.modalHabitMeta, { color: colors.textMuted }]}>
+                  Completados: {selectedHabit.completedDates.length} · Racha: {selectedHabit.streak}
+                </Text>
+                <Text style={[styles.modalHabitMeta, { color: colors.primary }]}>
+                  Rendimiento: {selectedHabitRate}%
+                </Text>
+                <TouchableOpacity
+                  style={[styles.modalCloseBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => setSelectedHabitId(null)}
+                >
+                  <Text style={styles.modalCloseText}>Cerrar</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.Text
@@ -203,14 +275,42 @@ export default function StatsScreen() {
           layout={Layout.springify().damping(18).stiffness(200)}
           style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Últimos 30 días</Text>
+          <View style={styles.rangeHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+              Tendencia
+            </Text>
+            <View style={styles.rangeChips}>
+              {RANGE_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[
+                    styles.rangeChip,
+                    { borderColor: colors.border, backgroundColor: colors.background },
+                    selectedRange === opt.key && { backgroundColor: colors.primary + '22', borderColor: colors.primary }
+                  ]}
+                  onPress={() => setSelectedRange(opt.key)}
+                >
+                  <Text
+                    style={[
+                      styles.rangeChipText,
+                      { color: selectedRange === opt.key ? colors.primary : colors.textMuted }
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
           <View style={{ alignItems: 'center', marginTop: 10 }}>
             <LineChart
               data={{
-                labels: stats.monthlyData.filter((_, i) => i % 5 === 0 || i === 29).map(d => d.day.toString()),
+                labels: stats.rangeData
+                  .filter((_, i) => i % Math.max(1, Math.floor(selectedRange / 6)) === 0 || i === selectedRange - 1)
+                  .map(d => d.day.toString()),
                 datasets: [
                   {
-                    data: stats.monthlyData.map(d => d.count),
+                    data: stats.rangeData.map(d => d.count),
                   }
                 ]
               }}
@@ -234,12 +334,13 @@ export default function StatsScreen() {
               }}
               bezier
               onDataPointClick={(data) => {
-                const point = stats.monthlyData[data.index];
+                const point = stats.rangeData[data.index];
                 if (!point) return;
                 setSelectedPoint({
                   index: data.index,
                   value: data.value,
                   date: point.date,
+                  percent: activeHabits.length > 0 ? Math.round((data.value / activeHabits.length) * 100) : 0,
                 });
               }}
               style={{
@@ -263,7 +364,29 @@ export default function StatsScreen() {
               <Text style={[styles.tooltipValue, { color: colors.primary }]}>
                 {selectedPoint.value} completados
               </Text>
+              <Text style={[styles.tooltipSub, { color: colors.textMuted }]}>
+                {selectedPoint.percent}% de tus hábitos activos
+              </Text>
             </Animated.View>
+          )}
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(190).duration(260)}
+          layout={Layout.springify().damping(18).stiffness(200)}
+          style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Insights automáticos</Text>
+          <Text style={[styles.insightText, { color: colors.textMuted }]}>
+            Recomendación semanal: {stats.weekSuggestion}
+          </Text>
+          <Text style={[styles.insightText, { color: colors.textMuted }]}>
+            Mejor día histórico: {DAY_NAMES_FULL[stats.bestDayIndex]}
+          </Text>
+          {stats.habitAtRisk && (
+            <Text style={[styles.insightText, { color: '#FFB84D' }]}>
+              Hábito en riesgo: {stats.habitAtRisk.habit.icon} {stats.habitAtRisk.habit.name}
+            </Text>
           )}
         </Animated.View>
 
@@ -366,19 +489,25 @@ export default function StatsScreen() {
                   layout={Layout.springify().damping(18).stiffness(200)}
                   style={styles.habitRow}
                 >
-                  <Text style={styles.habitRowIcon}>{habit.icon}</Text>
-                  <View style={styles.habitRowInfo}>
-                    <Text style={[styles.habitRowName, { color: colors.text }]} numberOfLines={1}>
-                      {habit.name}
-                    </Text>
-                    <View style={[styles.habitBarBg, { backgroundColor: colors.border }]}>
-                      <View style={[
-                        styles.habitBarFill,
-                        { width: `${rate}%`, backgroundColor: habit.color }
-                      ]} />
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.habitPressable}
+                    onPress={() => setSelectedHabitId(habit.id)}
+                  >
+                    <Text style={styles.habitRowIcon}>{habit.icon}</Text>
+                    <View style={styles.habitRowInfo}>
+                      <Text style={[styles.habitRowName, { color: colors.text }]} numberOfLines={1}>
+                        {habit.name}
+                      </Text>
+                      <View style={[styles.habitBarBg, { backgroundColor: colors.border }]}>
+                        <View style={[
+                          styles.habitBarFill,
+                          { width: `${rate}%`, backgroundColor: habit.color }
+                        ]} />
+                      </View>
                     </View>
-                  </View>
-                  <Text style={[styles.habitRowRate, { color: habit.color }]}>{rate}%</Text>
+                    <Text style={[styles.habitRowRate, { color: habit.color }]}>{rate}%</Text>
+                  </TouchableOpacity>
                 </Animated.View>
               );
             })
@@ -410,6 +539,12 @@ const styles = StyleSheet.create({
   tooltipCard: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 6 },
   tooltipTitle: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
   tooltipValue: { fontSize: 14, fontWeight: '700' },
+  tooltipSub: { fontSize: 12, marginTop: 3 },
+  rangeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rangeChips: { flexDirection: 'row', gap: 6 },
+  rangeChip: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  rangeChipText: { fontSize: 12, fontWeight: '700' },
+  insightText: { fontSize: 13, marginBottom: 8, lineHeight: 18 },
   weekBars: { flexDirection: 'row', justifyContent: 'space-between', height: 80 },
   weekBarCol: { alignItems: 'center', flex: 1 },
   weekBarPair: { flexDirection: 'row', gap: 2, flex: 1, alignItems: 'flex-end' },
@@ -438,6 +573,7 @@ const styles = StyleSheet.create({
   consistentName: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
   consistentSub: { fontSize: 13 },
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  habitPressable: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   habitRowIcon: { fontSize: 24, width: 32, textAlign: 'center' },
   habitRowInfo: { flex: 1 },
   habitRowName: { fontSize: 14, fontWeight: '500', marginBottom: 6 },
@@ -445,4 +581,17 @@ const styles = StyleSheet.create({
   habitBarFill: { height: '100%', borderRadius: 3 },
   habitRowRate: { fontSize: 13, fontWeight: 'bold', width: 38, textAlign: 'right' },
   emptyText: { fontSize: 14, textAlign: 'center', paddingVertical: 16 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: { width: '100%', borderRadius: 22, borderWidth: 1, padding: 24, alignItems: 'center' },
+  modalHabitIcon: { fontSize: 48, marginBottom: 10 },
+  modalHabitName: { fontSize: 22, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  modalHabitMeta: { fontSize: 14, marginBottom: 6, textAlign: 'center' },
+  modalCloseBtn: { marginTop: 14, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
+  modalCloseText: { color: '#FFF', fontWeight: '700' },
 });

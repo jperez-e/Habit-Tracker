@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   Modal,
   ScrollView,
   StatusBar,
@@ -9,9 +10,12 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
+import { useUiStore } from '../store/uiStore';
 import { useThemeStore } from '../store/themeStore';
 
 const DEFAULT_MOTIVATIONS = [
@@ -24,6 +28,7 @@ const DEFAULT_MOTIVATIONS = [
 
 export default function ProfileScreen() {
   const colors = useColors();
+  const showToast = useUiStore((s) => s.showToast);
   const { userName, userMotivation, appStartDate, setUserName, setUserMotivation } = useThemeStore();
   const { habits } = useHabitStore();
 
@@ -31,6 +36,15 @@ export default function ProfileScreen() {
   const [motivationModalVisible, setMotivationModalVisible] = useState(false);
   const [tempName, setTempName] = useState(userName);
   const [tempMotivation, setTempMotivation] = useState(userMotivation);
+  const [weeklyGoal, setWeeklyGoal] = useState(14);
+
+  React.useEffect(() => {
+    const loadWeeklyGoal = async () => {
+      const value = await AsyncStorage.getItem('profile_weekly_goal');
+      if (value) setWeeklyGoal(Number(value));
+    };
+    loadWeeklyGoal();
+  }, []);
 
   // Estadísticas del perfil
   const totalHabits = habits.length;
@@ -51,6 +65,18 @@ export default function ProfileScreen() {
   }, 0);
 
   const totalCompleted = habits.reduce((acc, h) => acc + h.completedDates.length, 0);
+  const thisWeekCompleted = (() => {
+    const now = new Date();
+    const day = now.getDay();
+    const start = new Date(now);
+    start.setDate(now.getDate() - day);
+    start.setHours(0, 0, 0, 0);
+    return habits.reduce((sum, habit) => {
+      const inWeek = habit.completedDates.filter((date) => new Date(date + 'T12:00:00') >= start).length;
+      return sum + inWeek;
+    }, 0);
+  })();
+  const weeklyGoalPct = Math.min(100, Math.round((thisWeekCompleted / Math.max(1, weeklyGoal)) * 100));
 
   const globalSuccessRate = (() => {
     if (activeHabits.length === 0 || !appStartDate) return 0;
@@ -84,6 +110,35 @@ export default function ProfileScreen() {
     await setUserMotivation(tempMotivation.trim());
     setMotivationModalVisible(false);
   };
+
+  const handleEditWeeklyGoal = () => {
+    Alert.alert(
+      'Meta semanal',
+      'Selecciona una meta rápida',
+      [
+        { text: '10', onPress: async () => { setWeeklyGoal(10); await AsyncStorage.setItem('profile_weekly_goal', '10'); showToast('Meta semanal: 10', 'success'); } },
+        { text: '14', onPress: async () => { setWeeklyGoal(14); await AsyncStorage.setItem('profile_weekly_goal', '14'); showToast('Meta semanal: 14', 'success'); } },
+        { text: '20', onPress: async () => { setWeeklyGoal(20); await AsyncStorage.setItem('profile_weekly_goal', '20'); showToast('Meta semanal: 20', 'success'); } },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  };
+
+  const badges = [
+    { id: 'starter', icon: '🌱', label: 'Primer hábito', unlocked: totalHabits >= 1 },
+    { id: 'streak7', icon: '🔥', label: 'Racha 7+', unlocked: bestStreakEver >= 7 },
+    { id: 'streak30', icon: '🚀', label: 'Racha 30+', unlocked: bestStreakEver >= 30 },
+    { id: 'wins100', icon: '🏆', label: '100 completados', unlocked: totalCompleted >= 100 },
+  ];
+
+  const heatmapData = Array.from({ length: 28 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (27 - i));
+    const key = d.toISOString().split('T')[0];
+    const count = habits.filter((h) => h.completedDates.includes(key)).length;
+    return { key, count };
+  });
+  const heatmapMax = Math.max(1, ...heatmapData.map((x) => x.count));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -179,7 +234,11 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header del perfil */}
-        <View style={[styles.profileHeader, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Animated.View
+          entering={FadeInDown.duration(240)}
+          layout={Layout.springify().damping(20).stiffness(200)}
+          style={[styles.profileHeader, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
           {/* Avatar */}
           <TouchableOpacity
             style={[styles.avatar, { backgroundColor: avatarColor }]}
@@ -213,7 +272,7 @@ export default function ProfileScreen() {
             </Text>
             <Text style={[styles.motivationEdit, { color: colors.primary }]}>✏️ Editar</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Estadísticas */}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Mis estadísticas</Text>
@@ -231,6 +290,28 @@ export default function ProfileScreen() {
             </View>
           ))}
         </View>
+
+        <Animated.View
+          entering={FadeInDown.delay(80).duration(240)}
+          layout={Layout.springify().damping(20).stiffness(200)}
+          style={[styles.successCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <View style={styles.successHeader}>
+            <Text style={[styles.successTitle, { color: colors.text }]}>Meta semanal</Text>
+            <TouchableOpacity onPress={handleEditWeeklyGoal}>
+              <Text style={[styles.goalEdit, { color: colors.primary }]}>Editar</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
+            {thisWeekCompleted}/{weeklyGoal} completados esta semana
+          </Text>
+          <View style={[styles.successBarBg, { backgroundColor: colors.border }]}>
+            <View style={[styles.successBarFill, { width: `${weeklyGoalPct}%`, backgroundColor: colors.primary }]} />
+          </View>
+          <Text style={[styles.successSub, { color: colors.textMuted }]}>
+            {weeklyGoalPct >= 100 ? 'Meta cumplida. Excelente semana.' : `Te faltan ${Math.max(0, weeklyGoal - thisWeekCompleted)} para llegar a la meta.`}
+          </Text>
+        </Animated.View>
 
         {/* Barra de éxito global */}
         <View style={[styles.successCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -254,6 +335,60 @@ export default function ProfileScreen() {
                 : '🌱 Sigue adelante, cada día cuenta'}
           </Text>
         </View>
+
+        <Animated.View
+          entering={FadeInDown.delay(120).duration(240)}
+          layout={Layout.springify().damping(20).stiffness(200)}
+          style={[styles.successCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Text style={[styles.successTitle, { color: colors.text, marginBottom: 10 }]}>Logros</Text>
+          <View style={styles.badgesWrap}>
+            {badges.map((badge) => (
+              <View
+                key={badge.id}
+                style={[
+                  styles.badgePill,
+                  {
+                    borderColor: badge.unlocked ? colors.primary : colors.border,
+                    backgroundColor: badge.unlocked ? colors.primary + '1F' : colors.background,
+                  }
+                ]}
+              >
+                <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                <Text style={[styles.badgeText, { color: badge.unlocked ? colors.text : colors.textMuted }]}>
+                  {badge.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(160).duration(240)}
+          layout={Layout.springify().damping(20).stiffness(200)}
+          style={[styles.successCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Text style={[styles.successTitle, { color: colors.text, marginBottom: 10 }]}>Actividad reciente (28 días)</Text>
+          <View style={styles.heatmapWrap}>
+            {heatmapData.map((cell) => {
+              const intensity = cell.count / heatmapMax;
+              return (
+                <View
+                  key={cell.key}
+                  style={[
+                    styles.heatCell,
+                    {
+                      backgroundColor: cell.count === 0 ? colors.border : `rgba(108,99,255,${0.25 + intensity * 0.75})`,
+                    }
+                  ]}
+                />
+              );
+            })}
+          </View>
+          <Text style={[styles.successSub, { color: colors.textMuted, marginTop: 8 }]}>
+            Más intenso = más hábitos completados ese día
+          </Text>
+        </Animated.View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -295,10 +430,18 @@ const styles = StyleSheet.create({
   },
   successHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   successTitle: { fontSize: 15, fontWeight: '600' },
+  goalEdit: { fontSize: 13, fontWeight: '700' },
+  goalMeta: { fontSize: 13, marginBottom: 10 },
   successPercent: { fontSize: 22, fontWeight: 'bold' },
   successBarBg: { height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 10 },
   successBarFill: { height: '100%', borderRadius: 5 },
   successSub: { fontSize: 13 },
+  badgesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  badgePill: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  badgeIcon: { fontSize: 14, marginRight: 6 },
+  badgeText: { fontSize: 12, fontWeight: '600' },
+  heatmapWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  heatCell: { width: '11.5%', aspectRatio: 1, borderRadius: 6 },
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center', alignItems: 'center', padding: 24,
