@@ -23,6 +23,8 @@ const GLOBAL_REMINDER_ID_KEY = 'global_reminder_id';
 export const HABIT_NOTIFICATION_CATEGORY_ID = 'habit_actions';
 export const HABIT_MARK_DONE_ACTION_ID = 'mark_done';
 
+export type GlobalReminderFrequency = 'daily' | 'every_2h' | 'every_4h' | 'every_8h';
+
 const parseTime = (timeStr: string): { hour: number; minute: number } => {
   const [h, m] = timeStr.split(':').map(Number);
   const hour = Number.isFinite(h) ? Math.min(Math.max(h, 0), 23) : 8;
@@ -59,19 +61,33 @@ export const configureNotificationActions = async () => {
 };
 
 // Recordatorio global (para todos los hábitos)
-export const scheduleGlobalReminder = async (hour: number, minute: number) => {
+export const scheduleGlobalReminder = async (
+  hour: number,
+  minute: number,
+  frequency: GlobalReminderFrequency = 'daily'
+) => {
   await cancelGlobalReminder();
+
+  const trigger =
+    frequency === 'daily'
+      ? {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY as const,
+        hour,
+        minute,
+      }
+      : {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL as const,
+        seconds: frequency === 'every_2h' ? 2 * 60 * 60 : frequency === 'every_4h' ? 4 * 60 * 60 : 8 * 60 * 60,
+        repeats: true,
+      };
+
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: '🌱 Habit Tracker',
       body: '¡Es hora de revisar tus hábitos del día!',
       sound: true,
     },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
+    trigger,
   });
   await AsyncStorage.setItem(GLOBAL_REMINDER_ID_KEY, id);
 };

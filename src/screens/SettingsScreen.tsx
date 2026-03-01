@@ -21,7 +21,12 @@ import { useColors } from '../hooks/useColors';
 import { supabase } from '../lib/supabase';
 import { useHabitStore } from '../store/habitStore';
 import { useThemeStore } from '../store/themeStore';
-import { cancelGlobalReminder, requestPermissions, scheduleGlobalReminder } from '../utils/notifications';
+import {
+  cancelGlobalReminder,
+  GlobalReminderFrequency,
+  requestPermissions,
+  scheduleGlobalReminder
+} from '../utils/notifications';
 
 
 type SettingRowProps = {
@@ -56,7 +61,9 @@ export default function SettingsScreen() {
   const { themeMode, setThemeMode, loadTheme } = useThemeStore();
   const [notifications, setNotifications] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
+  const [reminderFrequency, setReminderFrequency] = useState<GlobalReminderFrequency>('daily');
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const { userName, setUserName, userMotivation, appStartDate, setUserMotivation } = useThemeStore();
   const totalHabits = habits.length;
@@ -78,8 +85,10 @@ export default function SettingsScreen() {
     const loadPrefs = async () => {
       const notif = await AsyncStorage.getItem('notifications_enabled');
       const time = await AsyncStorage.getItem('reminder_time');
+      const frequency = await AsyncStorage.getItem('reminder_frequency') as GlobalReminderFrequency | null;
       setNotifications(notif === 'true');
       if (time) setReminderTime(time);
+      if (frequency) setReminderFrequency(frequency);
     };
     loadPrefs();
   }, []);
@@ -139,7 +148,7 @@ export default function SettingsScreen() {
         return;
       }
       const [hour, minute] = reminderTime.split(':').map(Number);
-      await scheduleGlobalReminder(hour, minute);
+      await scheduleGlobalReminder(hour, minute, reminderFrequency);
     } else {
       await cancelGlobalReminder();
     }
@@ -157,7 +166,18 @@ export default function SettingsScreen() {
     // Si las notificaciones globales están activas, reprogramamos con la nueva hora.
     if (notifications) {
       const [hour, minute] = time.split(':').map(Number);
-      await scheduleGlobalReminder(hour, minute);
+      await scheduleGlobalReminder(hour, minute, reminderFrequency);
+    }
+  };
+
+  const handleSelectReminderFrequency = async (frequency: GlobalReminderFrequency) => {
+    setReminderFrequency(frequency);
+    setShowFrequencyPicker(false);
+    await AsyncStorage.setItem('reminder_frequency', frequency);
+
+    if (notifications) {
+      const [hour, minute] = reminderTime.split(':').map(Number);
+      await scheduleGlobalReminder(hour, minute, frequency);
     }
   };
 
@@ -187,6 +207,7 @@ export default function SettingsScreen() {
         settings: {
           notificationsEnabled: notifications,
           reminderTime,
+          reminderFrequency,
         },
         habits,
       };
@@ -257,6 +278,10 @@ export default function SettingsScreen() {
       if (typeof parsed.settings?.reminderTime === 'string') {
         await AsyncStorage.setItem('reminder_time', parsed.settings.reminderTime);
         setReminderTime(parsed.settings.reminderTime);
+      }
+      if (typeof parsed.settings?.reminderFrequency === 'string') {
+        await AsyncStorage.setItem('reminder_frequency', parsed.settings.reminderFrequency);
+        setReminderFrequency(parsed.settings.reminderFrequency as GlobalReminderFrequency);
       }
 
       await loadTheme();
@@ -397,11 +422,49 @@ export default function SettingsScreen() {
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
+            icon="⏱️"
+            label="Frecuencia del recordatorio"
+            subtitle={
+              reminderFrequency === 'daily'
+                ? 'Una vez al día'
+                : reminderFrequency === 'every_2h'
+                  ? 'Cada 2 horas'
+                  : reminderFrequency === 'every_4h'
+                    ? 'Cada 4 horas'
+                    : 'Cada 8 horas'
+            }
+            colors={colors}
+            onPress={() => setShowFrequencyPicker(!showFrequencyPicker)}
+          />
+          {showFrequencyPicker && (
+            <View style={styles.timePicker}>
+              {[
+                { value: 'daily', label: 'Una vez al día' },
+                { value: 'every_2h', label: 'Cada 2h' },
+                { value: 'every_4h', label: 'Cada 4h' },
+                { value: 'every_8h', label: 'Cada 8h' },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.timeBtn, { backgroundColor: colors.border },
+                  reminderFrequency === opt.value && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
+                  onPress={() => { handleSelectReminderFrequency(opt.value as GlobalReminderFrequency); }}
+                >
+                  <Text style={[styles.timeText, { color: reminderFrequency === opt.value ? colors.primary : colors.textMuted }]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <SettingRow
             icon="⏰"
             label="Hora del recordatorio"
-            subtitle={reminderTime}
+            subtitle={reminderFrequency === 'daily' ? reminderTime : 'Solo aplica a "Una vez al día"'}
             colors={colors}
-            onPress={() => setShowTimePicker(true)}
+            onPress={reminderFrequency === 'daily' ? () => setShowTimePicker(true) : undefined}
           />
           {showTimePicker && (
             <View style={styles.timePicker}>
