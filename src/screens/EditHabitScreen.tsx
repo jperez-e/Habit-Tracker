@@ -28,6 +28,8 @@ export default function EditHabitScreen() {
   const habit = habits.find(h => h.id === habitId);
   const [reminderEnabled, setReminderEnabled] = useState(habit?.reminderEnabled ?? false);
   const [reminderTime, setReminderTime] = useState(habit?.reminderTime ?? '08:00');
+  const [timerEnabled, setTimerEnabled] = useState(habit?.timerEnabled ?? false);
+  const [targetMinutes, setTargetMinutes] = useState(habit?.targetMinutes ?? 25);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>(habit?.frequencyType ?? 'daily');
   const [specificDays, setSpecificDays] = useState<number[]>(habit?.specificDays ?? []);
@@ -82,6 +84,8 @@ export default function EditHabitScreen() {
         notes: validatedData.notes || '',
         reminderEnabled,
         reminderTime,
+        timerEnabled,
+        targetMinutes,
         frequencyType,
         specificDays,
         timesPerWeek,
@@ -306,6 +310,40 @@ export default function EditHabitScreen() {
                 onChange={handleReminderTimeChange}
               />
             )}
+          </View>
+        )}
+
+        <Text style={[styles.label, { color: colors.textMuted }]}>Temporizador del hábito</Text>
+        <View style={[styles.reminderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.reminderLeft}>
+            <Text style={styles.reminderIcon}>⏳</Text>
+            <Text style={[styles.reminderLabel, { color: colors.text }]}>
+              Activar temporizador
+            </Text>
+          </View>
+          <Switch
+            value={timerEnabled}
+            onValueChange={setTimerEnabled}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#FFF"
+          />
+        </View>
+
+        {timerEnabled && (
+          <View style={styles.timesGrid}>
+            {[10, 15, 25, 45, 60].map((n) => (
+              <TouchableOpacity
+                key={n}
+                style={[
+                  styles.timeBtn,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  targetMinutes === n && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+                onPress={() => setTargetMinutes(n)}
+              >
+                <Text style={[styles.timeBtnText, { color: targetMinutes === n ? '#FFF' : colors.text }]}>{n} min</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 

@@ -18,10 +18,11 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp, Layout } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useA11y } from '../hooks/useA11y';
 import { useColors } from '../hooks/useColors';
 import { supabase } from '../lib/supabase';
 import { useHabitStore } from '../store/habitStore';
-import { useThemeStore } from '../store/themeStore';
+import { TextScale, useThemeStore } from '../store/themeStore';
 import { useUiStore } from '../store/uiStore';
 import {
   cancelGlobalReminder,
@@ -39,16 +40,18 @@ type SettingRowProps = {
   right?: React.ReactNode;
   danger?: boolean;
   colors: any;
+  minHeight?: number;
+  fontScale?: number;
 };
 
-function SettingRow({ icon, label, subtitle, onPress, right, danger, colors }: SettingRowProps) {
+function SettingRow({ icon, label, subtitle, onPress, right, danger, colors, minHeight = 0, fontScale = 1 }: SettingRowProps) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
+    <TouchableOpacity style={[styles.row, minHeight ? { minHeight } : null]} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View style={styles.rowLeft}>
         <Text style={styles.rowIcon}>{icon}</Text>
         <View>
-          <Text style={[styles.rowLabel, { color: danger ? colors.danger : colors.text }]}>{label}</Text>
-          {subtitle && <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>}
+          <Text style={[styles.rowLabel, { color: danger ? colors.danger : colors.text, fontSize: Math.round(15 * fontScale) }]}>{label}</Text>
+          {subtitle && <Text style={[styles.rowSubtitle, { color: colors.textMuted, fontSize: Math.round(12 * fontScale) }]}>{subtitle}</Text>}
         </View>
       </View>
       {right && <View style={styles.rowRight}>{right}</View>}
@@ -59,15 +62,27 @@ function SettingRow({ icon, label, subtitle, onPress, right, danger, colors }: S
 
 export default function SettingsScreen() {
   const colors = useColors();
+  const { fontScale, minTouchSize } = useA11y();
   const showToast = useUiStore((s) => s.showToast);
   const { habits, clearAllHabits, resetStore, importHabitsFromBackup } = useHabitStore();
-  const { themeMode, setThemeMode, loadTheme } = useThemeStore();
+  const {
+    themeMode,
+    setThemeMode,
+    loadTheme,
+    textScale,
+    setTextScale,
+    highContrast,
+    setHighContrast,
+    largeTouchTargets,
+    setLargeTouchTargets,
+  } = useThemeStore();
   const [notifications, setNotifications] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [reminderFrequency, setReminderFrequency] = useState<GlobalReminderFrequency>('daily');
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
+  const [showTextScalePicker, setShowTextScalePicker] = useState(false);
   const { userName, setUserName, userMotivation, appStartDate, setUserMotivation } = useThemeStore();
   const totalHabits = habits.length;
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
@@ -387,6 +402,8 @@ export default function SettingsScreen() {
             label="Tema de la aplicación"
             subtitle={themeMode === 'system' ? 'Sistema' : themeMode === 'dark' ? 'Oscuro' : 'Claro'}
             colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
             onPress={() => setShowThemePicker(!showThemePicker)}
           />
           {showThemePicker && (
@@ -420,13 +437,17 @@ export default function SettingsScreen() {
             label="Tu nombre"
             subtitle={userName || 'Sin nombre'}
             colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
             onPress={handleEditName}
           />
           <SettingRow
             icon="🔔"
             label="Notificaciones"
-            subtitle="Disponible en build APK"
+            subtitle="Con mensajes personalizados"
             colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
             right={
               <Switch
                 value={notifications}
@@ -450,6 +471,8 @@ export default function SettingsScreen() {
                     : 'Cada 8 horas'
             }
             colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
             onPress={() => setShowFrequencyPicker(!showFrequencyPicker)}
           />
           {showFrequencyPicker && (
@@ -485,6 +508,8 @@ export default function SettingsScreen() {
             label="Hora del recordatorio"
             subtitle={reminderFrequency === 'daily' ? reminderTime : 'Solo aplica a "Una vez al día"'}
             colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
             onPress={reminderFrequency === 'daily' ? () => setShowTimePicker(true) : undefined}
           />
           {showTimePicker && (
@@ -511,20 +536,98 @@ export default function SettingsScreen() {
               )}
             </Animated.View>
           )}
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <SettingRow
+            icon="🔎"
+            label="Escala de texto"
+            subtitle={textScale === 'normal' ? 'Normal' : textScale === 'large' ? 'Grande' : 'Extra grande'}
+            colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
+            onPress={() => setShowTextScalePicker(!showTextScalePicker)}
+          />
+          {showTextScalePicker && (
+            <Animated.View
+              entering={FadeInDown.duration(180)}
+              exiting={FadeOutUp.duration(140)}
+              layout={Layout.springify().damping(20).stiffness(210)}
+              style={styles.timePicker}
+            >
+              {[
+                { value: 'normal', label: 'Normal' },
+                { value: 'large', label: 'Grande' },
+                { value: 'xlarge', label: 'Extra grande' },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.timeBtn, { backgroundColor: colors.border },
+                  textScale === opt.value && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
+                  onPress={async () => { await setTextScale(opt.value as TextScale); setShowTextScalePicker(false); }}
+                >
+                  <Text style={[styles.timeText, { color: textScale === opt.value ? colors.primary : colors.textMuted }]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </Animated.View>
+          )}
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <SettingRow
+            icon="🎨"
+            label="Alto contraste"
+            subtitle="Mejora legibilidad de textos y bordes"
+            colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
+            right={
+              <Switch
+                value={highContrast}
+                onValueChange={async (v) => {
+                  await setHighContrast(v);
+                  showToast(v ? 'Alto contraste activado.' : 'Alto contraste desactivado.', 'info');
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor="#FFF"
+              />
+            }
+          />
+          <SettingRow
+            icon="🖐️"
+            label="Objetivos táctiles grandes"
+            subtitle="Botones y filas más fáciles de tocar"
+            colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
+            right={
+              <Switch
+                value={largeTouchTargets}
+                onValueChange={async (v) => {
+                  await setLargeTouchTargets(v);
+                  showToast(v ? 'Tamaños táctiles grandes activados.' : 'Tamaños táctiles grandes desactivados.', 'info');
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor="#FFF"
+              />
+            }
+          />
         </Animated.View>
 
         {/* Acerca de */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Acerca de la app</Text>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <SettingRow icon="📱" label="Versión" subtitle="Habit Tracker v1.0.0" colors={colors} />
+          <SettingRow icon="📱" label="Versión" subtitle="Habit Tracker v1.0.0" colors={colors} minHeight={minTouchSize} fontScale={fontScale} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
             icon="⭐" label="Calificar la app" colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
             onPress={() => Alert.alert('¡Gracias!', 'Pronto estará disponible en la tienda.')}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
             icon="🔒" label="Política de privacidad" colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
             onPress={() => Alert.alert('Privacidad', 'Tus datos se guardan localmente y, si inicias sesión, también se sincronizan con tu cuenta en la nube (Supabase).')}
           />
         </View>
@@ -535,29 +638,31 @@ export default function SettingsScreen() {
           <SettingRow
             icon="🔄" label="Resetear onboarding"
             subtitle="Solo para desarrollo" colors={colors}
+            minHeight={minTouchSize}
+            fontScale={fontScale}
             onPress={handleResetOnboarding}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
             icon="💾" label="Exportar backup"
             subtitle="Genera un archivo JSON con tus datos"
-            colors={colors} onPress={handleExportBackup}
+            colors={colors} minHeight={minTouchSize} fontScale={fontScale} onPress={handleExportBackup}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
             icon="📥" label="Importar backup"
             subtitle="Restaura hábitos y preferencias desde JSON"
-            colors={colors} onPress={handleImportBackup}
+            colors={colors} minHeight={minTouchSize} fontScale={fontScale} onPress={handleImportBackup}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
             icon="🚪" label="Cerrar sesión"
-            colors={colors} onPress={handleSignOut}
+            colors={colors} minHeight={minTouchSize} fontScale={fontScale} onPress={handleSignOut}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
             icon="🗑️" label="Borrar todos los datos"
-            danger colors={colors} onPress={handleClearData}
+            danger colors={colors} minHeight={minTouchSize} fontScale={fontScale} onPress={handleClearData}
           />
         </View>
 

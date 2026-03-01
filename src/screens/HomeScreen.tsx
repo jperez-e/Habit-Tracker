@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import HabitCard from '../components/HabitCard';
+import { useA11y } from '../hooks/useA11y';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { useThemeStore } from '../store/themeStore';
@@ -35,11 +36,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const { scaleFont, minTouchSize } = useA11y();
   const habits = useHabitStore((s) => s.habits);
   const toggleHabit = useHabitStore((s) => s.toggleHabit);
   const loadHabits = useHabitStore((s) => s.loadHabits);
-  // Tipado defensivo para evitar falsos positivos de TS Server en VS Code.
-  const isLoading = useHabitStore((s: any) => Boolean(s?.isLoading));
+  const isLoading = useHabitStore((s) => s.isLoading);
   const today = getTodayString();
   const prevCompletedRef = useRef(0);
   const [showArchived, setShowArchived] = useState(false);
@@ -77,6 +78,18 @@ export default function HomeScreen() {
     : 0;
 
   const progressPercent = Math.round(progress * 100);
+  const stagnantHabits = activeHabits.filter((h) => {
+    const last14 = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    });
+    const recent7 = last14.slice(0, 7);
+    const prev7 = last14.slice(7, 14);
+    const recentDone = recent7.filter((d) => h.completedDates.includes(d)).length;
+    const prevDone = prev7.filter((d) => h.completedDates.includes(d)).length;
+    return recentDone <= 1 && prevDone >= 3;
+  }).slice(0, 2);
 
   // Dispara confetti al completar todos
   useEffect(() => {
@@ -131,13 +144,13 @@ export default function HomeScreen() {
         <View style={{ flex: 1, marginRight: 12 }}>
           <View style={styles.greetingRow}>
             <Text
-              style={[styles.greeting, { color: colors.text }]}
+              style={[styles.greeting, { color: colors.text, fontSize: scaleFont(24), lineHeight: scaleFont(38) }]}
             >
               {`${getGreeting()}${userName ? `, ${userName}` : ''}`}
             </Text>
             <Text style={styles.greetingEmoji}>👋</Text>
           </View>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          <Text style={[styles.subtitle, { color: colors.textMuted, fontSize: scaleFont(14) }]}>
             {t('check_progress')}
           </Text>
           {dueTodayHabits.length < activeHabits.length && (
@@ -147,7 +160,7 @@ export default function HomeScreen() {
           )}
         </View>
         <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: colors.primary }]}
+          style={[styles.addButton, { backgroundColor: colors.primary, minWidth: minTouchSize, minHeight: minTouchSize }]}
           onPress={() => router.push('/add-habit' as any)}
         >
           <Text style={styles.addButtonText}>+</Text>
@@ -195,6 +208,20 @@ export default function HomeScreen() {
           {t('percent_completed', { percent: progressPercent })}
         </Text>
       </View>
+
+      {stagnantHabits.length > 0 && (
+        <View style={[styles.stagnantCard, { backgroundColor: colors.card, borderColor: '#FFB84D' }]}>
+          <Text style={[styles.stagnantTitle, { color: '#FFB84D', fontSize: scaleFont(14) }]}>
+            ⚠️ Hábitos estancados
+          </Text>
+          {stagnantHabits.map((h) => (
+            <Text key={h.id} style={[styles.stagnantText, { color: colors.textMuted, fontSize: scaleFont(13) }]}>
+              {h.icon} {h.name}: baja actividad en los últimos 7 días.
+              Sugerencia: simplifícalo (menos frecuencia o menos minutos).
+            </Text>
+          ))}
+        </View>
+      )}
 
       {/* Lista de hábitos activos */}
       {isLoading ? (
@@ -314,6 +341,16 @@ const styles = StyleSheet.create({
   progressBar: { height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 8 },
   progressFill: { height: '100%', borderRadius: 4 },
   progressPercent: { fontSize: 12, fontWeight: '600' },
+  stagnantCard: {
+    marginHorizontal: 20,
+    marginTop: -4,
+    marginBottom: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+  },
+  stagnantTitle: { fontWeight: '700', marginBottom: 8 },
+  stagnantText: { lineHeight: 18, marginBottom: 6 },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
   skeletonWrap: { paddingHorizontal: 20, paddingBottom: 20 },
   skeletonCard: {

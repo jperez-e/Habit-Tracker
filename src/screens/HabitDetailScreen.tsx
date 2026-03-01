@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { Habit, useHabitStore } from '../store/habitStore';
+import { useUiStore } from '../store/uiStore';
 import { getTodayString } from '../utils/dateHelpers';
 import { getFrequencyLabel } from '../utils/habitFrequency';
 
@@ -33,22 +34,63 @@ export default function HabitDetailScreen() {
   const colors = useColors();
   const { habitId } = useLocalSearchParams();
   const { habits, toggleHabit, deleteHabit, archiveHabit, updateHabit } = useHabitStore();
+  const showToast = useUiStore((s) => s.showToast);
   const [retroModalVisible, setRetroModalVisible] = useState(false);
   const [retroDate, setRetroDate] = useState(getTodayString());
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const habit: Habit | undefined = habits.find((h) => h.id === habitId);
 
   useEffect(() => {
     if (!habit) router.replace('/(tabs)/home' as any);
   }, [habit, router]);
 
-  if (!habit) return null;
-
   const today = getTodayString();
   const last30 = getLast30Days();
-  const isCompletedToday = habit.completedDates.includes(today);
-  const isRestToday = (habit.restDates ?? []).includes(today);
-  const completedThisMonth = last30.filter(d => habit.completedDates.includes(d)).length;
+  const isCompletedToday = habit ? habit.completedDates.includes(today) : false;
+  const isRestToday = habit ? (habit.restDates ?? []).includes(today) : false;
+  const completedThisMonth = habit ? last30.filter(d => habit.completedDates.includes(d)).length : 0;
   const completionRate = Math.round((completedThisMonth / 30) * 100);
+  const targetMinutes = habit?.targetMinutes ?? 25;
+
+  useEffect(() => {
+    if (!habit?.timerEnabled) {
+      setTimerRunning(false);
+      setSecondsLeft(0);
+      return;
+    }
+
+    if (secondsLeft <= 0 && !timerRunning) {
+      setSecondsLeft(targetMinutes * 60);
+    }
+  }, [habit?.timerEnabled, targetMinutes, secondsLeft, timerRunning]);
+
+  useEffect(() => {
+    if (!timerRunning) return;
+    const id = setInterval(() => {
+      setSecondsLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerRunning]);
+
+  useEffect(() => {
+    if (!habit?.timerEnabled) return;
+    if (secondsLeft > 0) return;
+    if (!timerRunning) return;
+    if (!habit) return;
+
+    setTimerRunning(false);
+    if (!isCompletedToday) {
+      toggleHabit(habit.id, today);
+      showToast(`Temporizador completado: ${habit.name} marcado como hecho.`, 'success');
+    }
+  }, [secondsLeft, timerRunning, habit, isCompletedToday, today, toggleHabit, showToast]);
+
+  const timerMinutes = Math.floor(secondsLeft / 60);
+  const timerSeconds = secondsLeft % 60;
+  const timerDisplay = `${String(timerMinutes).padStart(2, '0')}:${String(timerSeconds).padStart(2, '0')}`;
+
+  if (!habit) return null;
 
   const handleRetroSave = () => {
     // Validamos formato ISO corto para evitar fechas ambiguas según región/dispositivo.
@@ -243,6 +285,37 @@ export default function HabitDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        {habit.timerEnabled && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>⏳ Temporizador</Text>
+            <View style={[styles.notesCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.timerValue, { color: colors.primary }]}>{timerDisplay}</Text>
+              <Text style={[styles.timerSub, { color: colors.textMuted }]}>
+                Objetivo: {targetMinutes} min
+              </Text>
+              <View style={styles.timerActions}>
+                <TouchableOpacity
+                  style={[styles.timerBtn, { borderColor: colors.primary }]}
+                  onPress={() => setTimerRunning((prev) => !prev)}
+                >
+                  <Text style={[styles.timerBtnText, { color: colors.primary }]}>
+                    {timerRunning ? 'Pausar' : 'Iniciar'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.timerBtn, { borderColor: colors.border }]}
+                  onPress={() => {
+                    setTimerRunning(false);
+                    setSecondsLeft(targetMinutes * 60);
+                  }}
+                >
+                  <Text style={[styles.timerBtnText, { color: colors.textMuted }]}>Reiniciar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         <View style={styles.statsRow}>
           {[
             { value: `🔥 ${habit.streak}`, label: 'Racha actual' },
@@ -365,6 +438,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addNotesBtnText: { fontSize: 14 },
+  timerValue: { fontSize: 42, fontWeight: '700', textAlign: 'center' },
+  timerSub: { fontSize: 13, marginTop: 6, textAlign: 'center' },
+  timerActions: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 16 },
+  timerBtn: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10 },
+  timerBtnText: { fontSize: 14, fontWeight: '600' },
   retroBtn: { marginTop: 12, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderStyle: 'dotted' },
   retroBtnText: { fontSize: 14, fontWeight: '600' },
   modalOverlay: {

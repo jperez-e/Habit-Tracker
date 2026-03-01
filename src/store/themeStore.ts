@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 
-type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type TextScale = 'normal' | 'large' | 'xlarge';
 
 type ThemeStore = {
   themeMode: ThemeMode;
@@ -10,11 +11,17 @@ type ThemeStore = {
   userName: string;
   userMotivation: string;
   appStartDate: string;
+  textScale: TextScale;
+  highContrast: boolean;
+  largeTouchTargets: boolean;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   toggleTheme: () => Promise<void>; // Legacy toggle (keep for backwards compat if needed)
   loadTheme: () => Promise<void>;
   setUserName: (name: string) => Promise<void>;
   setUserMotivation: (phrase: string) => Promise<void>;
+  setTextScale: (scale: TextScale) => Promise<void>;
+  setHighContrast: (enabled: boolean) => Promise<void>;
+  setLargeTouchTargets: (enabled: boolean) => Promise<void>;
 };
 
 export const useThemeStore = create<ThemeStore>((set, get) => ({
@@ -23,6 +30,9 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
   userName: '',
   userMotivation: '',
   appStartDate: '',
+  textScale: 'normal',
+  highContrast: false,
+  largeTouchTargets: false,
 
   setThemeMode: async (mode: ThemeMode) => {
     set({ themeMode: mode });
@@ -62,6 +72,9 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
     const name = await AsyncStorage.getItem('user_name');
     const motivation = await AsyncStorage.getItem('user_motivation');
     let startDate = await AsyncStorage.getItem('app_start_date');
+    const textScale = await AsyncStorage.getItem('text_scale');
+    const highContrast = await AsyncStorage.getItem('high_contrast');
+    const largeTouchTargets = await AsyncStorage.getItem('large_touch_targets');
 
     if (!startDate) {
       startDate = new Date().toISOString().split('T')[0];
@@ -71,6 +84,9 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
     if (name) set({ userName: name });
     if (motivation) set({ userMotivation: motivation });
     set({ appStartDate: startDate });
+    if (textScale === 'large' || textScale === 'xlarge') set({ textScale });
+    if (highContrast === 'true') set({ highContrast: true });
+    if (largeTouchTargets === 'true') set({ largeTouchTargets: true });
   },
 
   setUserName: async (name: string) => {
@@ -92,5 +108,17 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
   setUserMotivation: async (phrase: string) => {
     set({ userMotivation: phrase });
     await AsyncStorage.setItem('user_motivation', phrase);
+  },
+  setTextScale: async (scale) => {
+    set({ textScale: scale });
+    await AsyncStorage.setItem('text_scale', scale);
+  },
+  setHighContrast: async (enabled) => {
+    set({ highContrast: enabled });
+    await AsyncStorage.setItem('high_contrast', String(enabled));
+  },
+  setLargeTouchTargets: async (enabled) => {
+    set({ largeTouchTargets: enabled });
+    await AsyncStorage.setItem('large_touch_targets', String(enabled));
   },
 }));

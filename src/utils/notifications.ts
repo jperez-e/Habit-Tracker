@@ -32,6 +32,28 @@ const parseTime = (timeStr: string): { hour: number; minute: number } => {
   return { hour, minute };
 };
 
+const getPersonalizedTone = async (habitName?: string): Promise<{ title: string; body: string }> => {
+  const userName = (await AsyncStorage.getItem('user_name'))?.trim();
+  const motivation = (await AsyncStorage.getItem('user_motivation'))?.trim();
+  const shortName = userName ? `, ${userName}` : '';
+
+  if (habitName) {
+    return {
+      title: `🔔 Tu hábito${shortName}`,
+      body: motivation
+        ? `${habitName}: ${motivation}`
+        : `Momento de completar "${habitName}". Vamos con todo.`,
+    };
+  }
+
+  return {
+    title: `🌱 Recordatorio${shortName}`,
+    body: motivation
+      ? `No olvides tus hábitos de hoy. ${motivation}`
+      : 'No olvides revisar tus hábitos del día.',
+  };
+};
+
 const getHabitReminderMap = async (): Promise<Record<string, string>> => {
   try {
     const raw = await AsyncStorage.getItem(HABIT_REMINDER_IDS_KEY);
@@ -67,6 +89,7 @@ export const scheduleGlobalReminder = async (
   frequency: GlobalReminderFrequency = 'daily'
 ) => {
   await cancelGlobalReminder();
+  const tone = await getPersonalizedTone();
 
   const trigger =
     frequency === 'daily'
@@ -83,8 +106,8 @@ export const scheduleGlobalReminder = async (
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: '🌱 Habit Tracker',
-      body: '¡Es hora de revisar tus hábitos del día!',
+      title: tone.title,
+      body: tone.body,
       sound: true,
     },
     trigger,
@@ -113,12 +136,13 @@ export const scheduleHabitReminder = async (
 
   const { hour, minute } = parseTime(timeStr);
 
+  const tone = await getPersonalizedTone(habitName);
   const map = await getHabitReminderMap();
   const ids: string[] = [];
 
   const content = {
-    title: `${habitIcon} Recordatorio`,
-    body: `¡No olvides: ${habitName}!`,
+    title: `${habitIcon} ${tone.title}`,
+    body: tone.body,
     sound: true,
     categoryIdentifier: HABIT_NOTIFICATION_CATEGORY_ID,
     data: { habitId },

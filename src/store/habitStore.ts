@@ -14,6 +14,8 @@ export type Habit = {
   notes: string;
   reminderEnabled: boolean;
   reminderTime: string;
+  timerEnabled: boolean;
+  targetMinutes: number;
   frequencyType: HabitFrequencyType;
   specificDays: number[];
   timesPerWeek: number;
@@ -310,6 +312,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
             notes: ch.notes,
             reminderEnabled: ch.reminder_enabled,
             reminderTime: ch.reminder_time,
+            timerEnabled: false,
+            targetMinutes: 25,
             frequencyType: ch.frequency_type ?? 'daily',
             specificDays: ch.specific_days ?? [],
             timesPerWeek: ch.times_per_week ?? 3,
@@ -395,6 +399,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         notes: h.notes ?? '',
         reminderEnabled: h.reminderEnabled ?? false,
         reminderTime: h.reminderTime ?? '08:00',
+        timerEnabled: h.timerEnabled ?? false,
+        targetMinutes: h.targetMinutes ?? 25,
         frequencyType: h.frequencyType ?? 'daily',
         specificDays: h.specificDays ?? [],
         timesPerWeek: h.timesPerWeek ?? 3,
@@ -439,6 +445,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         notes: h.notes ?? '',
         reminderEnabled: h.reminderEnabled ?? false,
         reminderTime: h.reminderTime ?? '08:00',
+        timerEnabled: h.timerEnabled ?? false,
+        targetMinutes: h.targetMinutes ?? 25,
         frequencyType: h.frequencyType ?? 'daily',
         specificDays: h.specificDays ?? [],
         timesPerWeek: h.timesPerWeek ?? 3,
