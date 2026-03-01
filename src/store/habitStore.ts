@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { cancelHabitReminder, scheduleHabitReminder } from '../utils/notifications';
 
 export type Habit = {
   id: string;
@@ -100,9 +101,12 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
   updateHabit: async (id, updates) => {
     try {
-      const updated = get().habits.map(h =>
-        h.id === id ? { ...h, ...updates } : h
-      );
+      let mergedHabit: Habit | null = null;
+      const updated = get().habits.map(h => {
+        if (h.id !== id) return h;
+        mergedHabit = { ...h, ...updates };
+        return mergedHabit;
+      });
       set({ habits: updated });
       await AsyncStorage.setItem('habits', JSON.stringify(updated));
 
@@ -121,6 +125,20 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
         // Doble filtro por seguridad: evita afectar hábitos de otro usuario si cambia RLS.
         await supabase.from('habits').update(dbUpdates).eq('id', id).eq('user_id', user.id);
+      }
+
+      // Mantiene sincronizados los recordatorios al editar datos clave del hábito.
+      if (mergedHabit) {
+        if (!mergedHabit.reminderEnabled || mergedHabit.archived) {
+          await cancelHabitReminder(mergedHabit.id);
+        } else {
+          await scheduleHabitReminder(
+            mergedHabit.id,
+            mergedHabit.name,
+            mergedHabit.icon,
+            mergedHabit.reminderTime
+          );
+        }
       }
     } catch (error) {
       console.error('Error updating habit in storage:', error);
@@ -169,6 +187,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         // Doble filtro por seguridad: id + usuario autenticado.
         await supabase.from('habits').delete().eq('id', id).eq('user_id', user.id);
       }
+
+      await cancelHabitReminder(id);
     } catch (error) {
       console.error('Error deleting habit from storage:', error);
     }
@@ -177,9 +197,11 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
   archiveHabit: async (id) => {
     try {
       let isArchived = false;
+      let habitForReminder: Habit | null = null;
       const updated = get().habits.map(h => {
         if (h.id === id) {
           isArchived = !h.archived;
+          habitForReminder = { ...h, archived: isArchived };
           return { ...h, archived: isArchived };
         }
         return h;
@@ -193,6 +215,18 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         // Doble filtro por seguridad: id + usuario autenticado.
         await supabase.from('habits').update({ archived: isArchived }).eq('id', id).eq('user_id', user.id);
       }
+
+      // Si se archiva, quitamos recordatorio. Si se reactiva y tenía recordatorio, lo restauramos.
+      if (isArchived) {
+        await cancelHabitReminder(id);
+      } else if (habitForReminder?.reminderEnabled) {
+        await scheduleHabitReminder(
+          habitForReminder.id,
+          habitForReminder.name,
+          habitForReminder.icon,
+          habitForReminder.reminderTime
+        );
+      }
     } catch (error) {
       console.error('Error archiving habit in storage:', error);
     }
@@ -200,6 +234,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
   clearAllHabits: async () => {
     try {
+      const currentHabits = get().habits;
       set({ habits: [] });
       await AsyncStorage.removeItem('habits');
 
@@ -208,6 +243,9 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       if (user) {
         await supabase.from('habits').delete().eq('user_id', user.id);
       }
+
+      // Limpiamos recordatorios locales de hábitos eliminados.
+      await Promise.all(currentHabits.map((h) => cancelHabitReminder(h.id)));
     } catch (error) {
       console.error('Error clearing habits in storage:', error);
     }
@@ -306,6 +344,17 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
       set({ habits: migrated });
       await AsyncStorage.setItem('habits', JSON.stringify(migrated));
+
+      // Reprogramamos recordatorios activos al cargar la data.
+      const reminderJobs = migrated
+        .filter((h) => h.reminderEnabled && !h.archived)
+        .map((h) =>
+          scheduleHabitReminder(h.id, h.name, h.icon, h.reminderTime).catch((e) => {
+            console.warn('No se pudo reprogramar recordatorio de hábito:', h.id, e);
+          })
+        );
+
+      await Promise.all(reminderJobs);
     } catch (error) {
       console.error('Error loading habits from storage:', error);
     }

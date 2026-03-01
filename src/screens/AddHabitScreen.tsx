@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../hooks/useColors';
 import { useHabitStore } from '../store/habitStore';
 import { habitSchema } from '../utils/habitValidation';
-import { scheduleHabitReminder } from '../utils/notifications';
+import { requestPermissions, scheduleHabitReminder } from '../utils/notifications';
 
 const ICONS = ['⭐', '💪', '📚', '🏃', '🧘', '💧', '🥗', '😴', '🎯', '✍️', '🎨', '🎵', '🌿'];
 const COLORS = ['#6C63FF', '#FF6584', '#43C6AC', '#F7971E', '#12c2e9', '#f64f59', '#c471ed', '#4CAF50'];
@@ -55,6 +55,11 @@ export default function AddHabitScreen() {
       addHabit(newHabit);
 
       if (reminderEnabled) {
+        const granted = await requestPermissions();
+        if (!granted) {
+          Alert.alert('Permiso requerido', 'Activa las notificaciones para usar recordatorios.');
+          return;
+        }
         await scheduleHabitReminder(newHabit.id, newHabit.name, newHabit.icon, reminderTime);
       }
       router.back();

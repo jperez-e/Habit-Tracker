@@ -6,7 +6,7 @@ import AuthScreen from '../src/screens/AuthScreen';
 import { useThemeStore } from '../src/store/themeStore';
 
 export default function RootLayout() {
-  const { loadTheme, setUserName, userName } = useThemeStore();
+  const { loadTheme, setUserName } = useThemeStore();
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
 
@@ -31,7 +31,7 @@ export default function RootLayout() {
     });
 
     return () => subscription.unsubscribe();
-  }, [loadTheme]);
+  }, [loadTheme, setUserName]);
 
   if (!initialized) return null;
 

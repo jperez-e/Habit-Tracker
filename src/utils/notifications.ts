@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LogBox } from 'react-native';
 
 // Ignora la advertencia sobre notificaciones remotas en Expo Go,
@@ -16,6 +17,29 @@ Notifications.setNotificationHandler({
   }),
 });
 
+const HABIT_REMINDER_IDS_KEY = 'habit_reminder_ids';
+const GLOBAL_REMINDER_ID_KEY = 'global_reminder_id';
+
+const parseTime = (timeStr: string): { hour: number; minute: number } => {
+  const [h, m] = timeStr.split(':').map(Number);
+  const hour = Number.isFinite(h) ? Math.min(Math.max(h, 0), 23) : 8;
+  const minute = Number.isFinite(m) ? Math.min(Math.max(m, 0), 59) : 0;
+  return { hour, minute };
+};
+
+const getHabitReminderMap = async (): Promise<Record<string, string>> => {
+  try {
+    const raw = await AsyncStorage.getItem(HABIT_REMINDER_IDS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const setHabitReminderMap = async (map: Record<string, string>) => {
+  await AsyncStorage.setItem(HABIT_REMINDER_IDS_KEY, JSON.stringify(map));
+};
+
 export const requestPermissions = async (): Promise<boolean> => {
   const { status } = await Notifications.requestPermissionsAsync();
   return status === 'granted';
@@ -23,8 +47,8 @@ export const requestPermissions = async (): Promise<boolean> => {
 
 // Recordatorio global (para todos los hábitos)
 export const scheduleGlobalReminder = async (hour: number, minute: number) => {
-  await Notifications.cancelAllScheduledNotificationsAsync();
-  await Notifications.scheduleNotificationAsync({
+  await cancelGlobalReminder();
+  const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: '🌱 Habit Tracker',
       body: '¡Es hora de revisar tus hábitos del día!',
@@ -36,6 +60,15 @@ export const scheduleGlobalReminder = async (hour: number, minute: number) => {
       minute,
     },
   });
+  await AsyncStorage.setItem(GLOBAL_REMINDER_ID_KEY, id);
+};
+
+export const cancelGlobalReminder = async () => {
+  const id = await AsyncStorage.getItem(GLOBAL_REMINDER_ID_KEY);
+  if (id) {
+    await Notifications.cancelScheduledNotificationAsync(id);
+    await AsyncStorage.removeItem(GLOBAL_REMINDER_ID_KEY);
+  }
 };
 
 // Recordatorio por hábito individual
@@ -48,10 +81,9 @@ export const scheduleHabitReminder = async (
   // Cancela el anterior de este hábito
   await cancelHabitReminder(habitId);
 
-  const [hour, minute] = timeStr.split(':').map(Number);
+  const { hour, minute } = parseTime(timeStr);
 
-  await Notifications.scheduleNotificationAsync({
-    identifier: `habit_${habitId}`,
+  const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: `${habitIcon} Recordatorio`,
       body: `¡No olvides: ${habitName}!`,
@@ -64,12 +96,23 @@ export const scheduleHabitReminder = async (
       minute,
     },
   });
+
+  const map = await getHabitReminderMap();
+  map[habitId] = notificationId;
+  await setHabitReminderMap(map);
 };
 
 export const cancelHabitReminder = async (habitId: string) => {
-  await Notifications.cancelScheduledNotificationAsync(`habit_${habitId}`);
+  const map = await getHabitReminderMap();
+  const id = map[habitId];
+  if (!id) return;
+  await Notifications.cancelScheduledNotificationAsync(id);
+  delete map[habitId];
+  await setHabitReminderMap(map);
 };
 
 export const cancelAllReminders = async () => {
   await Notifications.cancelAllScheduledNotificationsAsync();
+  await AsyncStorage.removeItem(HABIT_REMINDER_IDS_KEY);
+  await AsyncStorage.removeItem(GLOBAL_REMINDER_ID_KEY);
 };

@@ -1,9 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { cancelHabitReminder, scheduleHabitReminder } from '../utils/notifications';
+import { cancelHabitReminder, requestPermissions, scheduleHabitReminder } from '../utils/notifications';
 
 import {
-  Alert, ScrollView, StatusBar, StyleSheet,
+  Alert, ScrollView, StatusBar, StyleSheet, Switch,
   Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,8 +22,9 @@ export default function EditHabitScreen() {
   const { habitId } = useLocalSearchParams();
   const { habits, updateHabit } = useHabitStore();
   const habit = habits.find(h => h.id === habitId);
-  const reminderEnabled = habit?.reminderEnabled ?? false;
-  const reminderTime = habit?.reminderTime ?? '08:00';
+  const [reminderEnabled, setReminderEnabled] = useState(habit?.reminderEnabled ?? false);
+  const [reminderTime, setReminderTime] = useState(habit?.reminderTime ?? '08:00');
+  const REMINDER_TIMES = ['06:00', '07:00', '08:00', '09:00', '12:00', '18:00', '20:00', '22:00'];
   const [name, setName] = useState(habit?.name ?? '');
   const [selectedIcon, setSelectedIcon] = useState(habit?.icon ?? '⭐');
   const [selectedColor, setSelectedColor] = useState(habit?.color ?? '#6C63FF');
@@ -54,6 +55,11 @@ export default function EditHabitScreen() {
       });
 
       if (reminderEnabled) {
+        const granted = await requestPermissions();
+        if (!granted) {
+          Alert.alert('Permiso requerido', 'Activa las notificaciones para usar recordatorios.');
+          return;
+        }
         await scheduleHabitReminder(habit.id, validatedData.name, validatedData.icon, reminderTime);
       } else {
         await cancelHabitReminder(habit.id);
@@ -135,6 +141,42 @@ export default function EditHabitScreen() {
         <Text style={[styles.charCount, { color: colors.textMuted }]}>
           {notes.length}/300
         </Text>
+
+        <Text style={[styles.label, { color: colors.textMuted }]}>Recordatorio</Text>
+        <View style={[styles.reminderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.reminderLeft}>
+            <Text style={styles.reminderIcon}>🔔</Text>
+            <Text style={[styles.reminderLabel, { color: colors.text }]}>
+              Recordatorio diario
+            </Text>
+          </View>
+          <Switch
+            value={reminderEnabled}
+            onValueChange={setReminderEnabled}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#FFF"
+          />
+        </View>
+
+        {reminderEnabled && (
+          <View style={styles.timesGrid}>
+            {REMINDER_TIMES.map(time => (
+              <TouchableOpacity
+                key={time}
+                style={[
+                  styles.timeBtn,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  reminderTime === time && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+                onPress={() => setReminderTime(time)}
+              >
+                <Text style={[styles.timeBtnText, { color: reminderTime === time ? '#FFF' : colors.text }]}>
+                  {time}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Ícono */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Ícono</Text>
@@ -229,4 +271,18 @@ const styles = StyleSheet.create({
   },
   colorBtnSelected: { borderColor: '#FFF' },
   colorCheck: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+  reminderRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', borderRadius: 14, padding: 16,
+    borderWidth: 1, marginBottom: 12,
+  },
+  reminderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  reminderIcon: { fontSize: 20 },
+  reminderLabel: { fontSize: 15, fontWeight: '500' },
+  timesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  timeBtn: {
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1,
+  },
+  timeBtnText: { fontSize: 14, fontWeight: '500' },
 });

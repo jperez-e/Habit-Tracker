@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -16,6 +18,7 @@ import { useColors } from '../hooks/useColors';
 import { supabase } from '../lib/supabase';
 import { useHabitStore } from '../store/habitStore';
 import { useThemeStore } from '../store/themeStore';
+import { cancelGlobalReminder, requestPermissions, scheduleGlobalReminder } from '../utils/notifications';
 
 
 type SettingRowProps = {
@@ -54,7 +57,7 @@ export default function SettingsScreen() {
   const [reminderTime, setReminderTime] = useState('08:00');
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
-  const { userName, setUserName } = useThemeStore();
+  const { userName, setUserName, userMotivation, appStartDate } = useThemeStore();
   const totalHabits = habits.length;
   const totalCompletions = habits.reduce((sum, h) => sum + h.completedDates.length, 0);
   const [nameModalVisible, setNameModalVisible] = useState(false);
@@ -122,6 +125,18 @@ export default function SettingsScreen() {
 
   // Guardamos la preferencia inmediatamente para no perder el cambio al cerrar la app.
   const handleToggleNotifications = async (value: boolean) => {
+    if (value) {
+      const granted = await requestPermissions();
+      if (!granted) {
+        Alert.alert('Permiso requerido', 'Activa las notificaciones para usar recordatorios.');
+        return;
+      }
+      const [hour, minute] = reminderTime.split(':').map(Number);
+      await scheduleGlobalReminder(hour, minute);
+    } else {
+      await cancelGlobalReminder();
+    }
+
     setNotifications(value);
     await AsyncStorage.setItem('notifications_enabled', String(value));
   };
@@ -131,6 +146,52 @@ export default function SettingsScreen() {
     setReminderTime(time);
     setShowTimePicker(false);
     await AsyncStorage.setItem('reminder_time', time);
+
+    // Si las notificaciones globales están activas, reprogramamos con la nueva hora.
+    if (notifications) {
+      const [hour, minute] = time.split(':').map(Number);
+      await scheduleGlobalReminder(hour, minute);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        app: 'Habit Tracker',
+        version: '1.0.0',
+        user: {
+          name: userName,
+          motivation: userMotivation,
+          appStartDate,
+          themeMode,
+        },
+        settings: {
+          notificationsEnabled: notifications,
+          reminderTime,
+        },
+        habits,
+      };
+
+      const fileUri = `${FileSystem.cacheDirectory}habit-tracker-backup-${Date.now()}.json`;
+      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(backup, null, 2), {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert('Backup creado', `Archivo generado en:\n${fileUri}`);
+        return;
+      }
+
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/json',
+        dialogTitle: 'Exportar backup de Habit Tracker',
+      });
+    } catch (error) {
+      console.error('Error exporting backup:', error);
+      Alert.alert('Error', 'No se pudo exportar el backup.');
+    }
   };
 
 
@@ -309,6 +370,12 @@ export default function SettingsScreen() {
             icon="🔄" label="Resetear onboarding"
             subtitle="Solo para desarrollo" colors={colors}
             onPress={handleResetOnboarding}
+          />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <SettingRow
+            icon="💾" label="Exportar backup"
+            subtitle="Genera un archivo JSON con tus datos"
+            colors={colors} onPress={handleExportBackup}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <SettingRow
