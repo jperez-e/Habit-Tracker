@@ -14,7 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/icon-foreground.png",
         "backgroundColor": "#12121E"
       },
       "package": "com.jperez.habittracker",
